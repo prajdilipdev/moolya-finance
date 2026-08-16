@@ -35,7 +35,7 @@ Sidebar is grouped so it's easy to scan:
 - **Vite + React 18 + TypeScript** (Next.js-style SPA)
 - **Tailwind CSS** design system (deep navy / emerald / blue / coral, Plus Jakarta Sans)
 - **Framer Motion** micro-interactions, **Recharts** charts, **Lucide** icons, **Zod**-compatible typed models
-- **Supabase** (optional) for auth + cloud PostgreSQL with full **Row Level Security**
+- **Supabase Auth** (optional) for email/password sign-in; schema with full **Row Level Security** ready for cloud sync
 - Local-first data layer with **localStorage** — works instantly with zero backend
 
 ---
@@ -52,29 +52,43 @@ npm run preview
 Out of the box the app runs **entirely locally** (data saved in your browser's localStorage) and comes pre-loaded with realistic sample data so you can try every feature immediately. Reset to fresh sample data any time under **Settings → Data**.
 
 ### What I kept deliberately simple for a single user
-Because this is your private tool (not a multi-tenant SaaS), you don't need a running database to use it. The Supabase setup below is entirely **optional** — it's there if you want cloud sync + real email/password login.
+Because this is your private tool (not a multi-tenant SaaS), you don't need a running database to use it. The Supabase setup below is entirely **optional** — add it when you want a real email/password login in front of the app.
 
 ---
 
-## Optional: Supabase (auth + cloud storage)
+## Supabase login (optional)
+
+Email/password sign-in that locks the app to you. **Your financial records still live in localStorage** — the account controls who can open the app, not where the data is stored. Cloud sync is the next step, not this one.
+
+Because this is a Vite SPA and not Next.js, there is no server, no `@supabase/ssr`, no cookie middleware and no `NEXT_PUBLIC_*`: `@supabase/supabase-js` runs in the browser, the session lives in localStorage and refreshes itself.
 
 1. Create a free project at [supabase.com](https://supabase.com).
-2. In the SQL editor, run **`supabase/schema.sql`** (creates all tables + RLS policies + profile-on-signup trigger).
-3. In **Authentication → Providers**, enable Email/Password (and Google if you want).
-4. Create a `.env` file in the project root:
+2. In **Authentication → Providers**, enable **Email**.
+3. Copy `.env.example` to `.env` in the project root and fill in your project URL and publishable key (**Project Settings → API Keys**):
 
 ```env
 VITE_SUPABASE_URL=https://YOUR-PROJECT.supabase.co
-VITE_SUPABASE_ANON_KEY=YOUR-ANON-PUBLIC-KEY
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 ```
 
-Start from `.env.example`. The Supabase **anon** key is designed to be public — Row Level Security is what protects your rows.
+4. `npm run dev`, hit **Create account**, confirm the email Supabase sends, then sign in.
+5. **Now go back to Authentication → Sign In / Providers and turn off "Allow new users to sign up".** Otherwise anyone who finds your deployed URL can register.
 
-5. Install `@supabase/supabase-js` and swap the data layer from the localStorage adapter to the Supabase adapter (see **Architecture** below).
+Leave `.env` out and the app behaves exactly as before: no login, fully offline.
 
-> 🔐 **Security model:** Every table stores `user_id` and RLS enforces ownership with policies like `using (user_id = auth.uid())`.
+Later, for cloud sync: run **`supabase/schema.sql`** in the SQL editor (all tables + RLS policies + profile-on-signup trigger) and point the data layer at Supabase — see **Architecture** below.
+
+> 🔐 **Security model:** Every table stores `user_id` and RLS enforces ownership with policies like `using (user_id = auth.uid())`. The publishable/anon key is *meant* to be public; RLS is what protects your rows.
 >
-> ⚠️ **Anything prefixed `VITE_` is compiled into the JavaScript bundle and is publicly readable.** Never put a Supabase `service_role` key, an OpenAI key, or any other private secret behind a `VITE_` variable. A provider key belongs in a server/edge function that the browser calls.
+> ⚠️ **Anything prefixed `VITE_` is compiled into the JavaScript bundle and is publicly readable.** Never put a Supabase secret key (`sb_secret_…` / `service_role`), an OpenAI key, or any other private secret behind a `VITE_` variable — a secret key bypasses RLS completely. Those belong in an edge function the browser calls.
+
+**Auth files**
+
+| File | Role |
+|---|---|
+| `src/lib/supabase.ts` | Browser client + friendly error messages; exports `null` when unconfigured |
+| `src/context/AuthContext.tsx` | Session state, `signIn` / `signUp` / `signOut` / `resetPassword` |
+| `src/components/AuthGate.tsx` | The login screen; renders children straight through when auth is off |
 
 ---
 

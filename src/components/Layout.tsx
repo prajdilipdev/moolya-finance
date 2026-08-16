@@ -6,6 +6,7 @@ import {
   FileBarChart, Upload, Settings, Sparkles, Command as CommandIcon, LogOut, Wallet, Plus,
 } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
+import { useAuth } from '@/context/AuthContext'
 import { CommandPalette } from './CommandPalette'
 import { PeriodSelector } from './PeriodSelector'
 import { QuickAdd } from './QuickAdd'
@@ -78,6 +79,7 @@ function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
 
 export function Layout() {
   const { db } = useApp()
+  const auth = useAuth()
   const [palette, setPalette] = useState(false)
   const [quickAdd, setQuickAdd] = useState(false)
   const loc = useLocation()
@@ -138,6 +140,24 @@ export function Layout() {
           <div className="space-y-0.5 pb-1">
             {PINNED.map((item) => <NavItemLink key={item.to} item={item} />)}
           </div>
+          {auth.enabled && auth.user && (
+            <div className="mt-1 flex items-center gap-2 border-t pt-2">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-[10px] font-bold text-accent">
+                {initials(db.profile?.name || auth.user.email || 'U')}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[11px] text-base-muted" title={auth.user.email}>
+                {auth.user.email}
+              </span>
+              <button
+                onClick={() => auth.signOut()}
+                className="shrink-0 rounded-lg p-1.5 text-base-muted hover:bg-base/5 hover:text-base"
+                aria-label="Sign out"
+                title="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 

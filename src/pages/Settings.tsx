@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react'
-import { Download, Upload, Trash2, Plus, RefreshCw, Sun, Moon, Monitor, Save, Check, ShieldCheck } from 'lucide-react'
+import { Download, Upload, Trash2, Plus, RefreshCw, Sun, Moon, Monitor, Save, Check, ShieldCheck, LogOut } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
+import { useAuth } from '@/context/AuthContext'
 import { importJSON } from '@/lib/store'
 import { downloadFile } from '@/lib/format'
 import { Segmented, Field } from '@/components/ui/Misc'
@@ -9,6 +10,7 @@ import { cn } from '@/lib/utils'
 
 export function Settings() {
   const { db, updateProfile, setTheme, upsertCategory, deleteCategory, upsertPaymentMethod, addRule, deleteRule, resetAll, backupJSON, replaceDB } = useApp()
+  const auth = useAuth()
   const [tab, setTab] = useState('account')
   const fileRef = useRef<HTMLInputElement>(null)
   const [saved, setSaved] = useState(false)
@@ -63,10 +65,26 @@ export function Settings() {
               <button onClick={flash} className="btn-primary"><Save className="h-4 w-4" /> Save changes {saved && <Check className="h-4 w-4" />}</button>
             </div>
           </div>
+          {auth.enabled && auth.user && (
+            <div className="card p-5">
+              <h3 className="mb-3 text-sm font-bold">Sign-in</h3>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="truncate text-sm font-semibold">{auth.user.email}</div>
+                  <div className="text-xs text-base-muted">Signed in with Supabase</div>
+                </div>
+                <button onClick={() => auth.signOut()} className="btn-secondary text-xs"><LogOut className="h-4 w-4" /> Sign out</button>
+              </div>
+            </div>
+          )}
           <div className="card flex items-center justify-between p-5">
             <div>
               <div className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-4 w-4 text-positive" /> Private by default</div>
-              <p className="text-sm text-base-muted">Your financial data is stored locally on this device (and optionally in your own Supabase account).</p>
+              <p className="text-sm text-base-muted">
+                {auth.enabled
+                  ? 'Your account controls who can open the app. Your financial records themselves are stored locally on this device.'
+                  : 'Your financial data is stored locally on this device (and optionally in your own Supabase account).'}
+              </p>
             </div>
           </div>
         </div>
