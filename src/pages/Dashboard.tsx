@@ -116,9 +116,6 @@ export function Dashboard() {
         </motion.div>
       </div>
 
-      {/* Setup checklist */}
-      <SetupChecklist />
-
       {/* Quick Add */}
       <section>
         <div className="mb-2 flex items-center gap-2">
@@ -127,6 +124,9 @@ export function Dashboard() {
         </div>
         <QuickAdd />
       </section>
+
+      {/* Setup checklist */}
+      <SetupChecklist />
 
       {/* Today */}
       <motion.section initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }} className="card p-4 sm:p-5">
