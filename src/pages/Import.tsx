@@ -384,14 +384,20 @@ export function Import() {
                       <td className="px-3 py-2">
                         <select
                           value={r.type}
-                          onChange={(e) => updateRow(i, { type: e.target.value as 'income' | 'expense' })}
+                          onChange={(e) => {
+                            const newType = e.target.value as 'income' | 'expense'
+                            const defaultCat =
+                              db.categories.find((c) => !c.parentId && c.type === newType)?.name ||
+                              (newType === 'income' ? 'Income' : 'Other')
+                            updateRow(i, { type: newType, category: defaultCat, subcategory: null })
+                          }}
                           className={cn(
                             'input !w-auto !py-1 text-xs font-semibold',
                             r.type === 'income' ? 'text-positive' : 'text-negative'
                           )}
                         >
-                          <option value="expense">Expense</option>
-                          <option value="income">Income</option>
+                          <option value="expense">Expense (Debit)</option>
+                          <option value="income">Income (Credit)</option>
                         </select>
                       </td>
                       <td className="px-3 py-2">
