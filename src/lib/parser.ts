@@ -3,6 +3,22 @@ import { guessCategory, matchRuleToCategory, findOrCreateCategory } from './cate
 import { todayISO, toISODate, addDays, uid } from './format'
 
 // ===========================================================================
+// Foreign Exchange Rates to INR (1 Foreign Unit = X INR)
+// ===========================================================================
+
+export const FX_RATES_TO_INR: Record<string, number> = {
+  USD: 87.5,
+  EUR: 95.0,
+  GBP: 112.0,
+  AED: 23.8,
+  CAD: 64.0,
+  AUD: 57.0,
+  SGD: 65.5,
+  JPY: 0.58,
+  CHF: 98.0,
+}
+
+// ===========================================================================
 // Amount extraction
 // ===========================================================================
 
@@ -18,38 +34,87 @@ function toNumber(raw: string): number {
   return parseFloat(raw.replace(/,/g, ''))
 }
 
-// Returns the first amount found and the remainder of the text.
-export function extractAmount(text: string): { amount: number; rest: string } | null {
+export interface ExtractedAmount {
+  amount: number
+  rest: string
+  originalAmount?: number
+  originalCurrency?: string
+  convertedNote?: string
+}
+
+// Returns the first amount found (converted to INR if foreign) and the remainder of the text.
+export function extractAmount(text: string): ExtractedAmount | null {
   const trimmed = text.trim()
   if (!trimmed) return null
 
-  const patterns: RegExp[] = [
-    /(₹)\s*([\d,]+(?:\.\d+)?)/, // ₹200, ₹ 200
-    /([\d,]+(?:\.\d+)?)\s*(?:rs|inr|rupees?|rupee)\b/i, // 200 rs, 200 INR, 200 rupees
-    /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)\b/i, // 2k, 25k, 1.5 lakh, 2 crore
-    /([\d,]+(?:\.\d+)?)\s*rs\b/i, // 200rs (no space)
-    /([\d,]+(?:\.\d+)?)/, // plain number 200
+  // 1. Check foreign currency with prefix ($21, €15, £10, ₹200)
+  const prefixPatterns: { pat: RegExp; currency: string; rate: number }[] = [
+    { pat: /^\$\s*([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?/i, currency: 'USD', rate: FX_RATES_TO_INR.USD },
+    { pat: /\$\s*([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?/i, currency: 'USD', rate: FX_RATES_TO_INR.USD },
+    { pat: /€\s*([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?/i, currency: 'EUR', rate: FX_RATES_TO_INR.EUR },
+    { pat: /£\s*([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?/i, currency: 'GBP', rate: FX_RATES_TO_INR.GBP },
+    { pat: /₹\s*([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?/i, currency: 'INR', rate: 1.0 },
   ]
 
-  for (const pat of patterns) {
+  for (const { pat, currency, rate } of prefixPatterns) {
     const m = trimmed.match(pat)
     if (m) {
-      const isPrefix = m[1] === '₹'
-      const raw = isPrefix ? m[2] : m[1]
-      let value = toNumber(raw)
-      if (!isPrefix && m[2] && m[2].toLowerCase() in SUFFIX_VALUE) {
-        value = toNumber(raw) * SUFFIX_VALUE[m[2].toLowerCase()]
-      } else if (!isPrefix && m[3] && m[3].toLowerCase() in SUFFIX_VALUE) {
-        value = toNumber(raw) * SUFFIX_VALUE[m[3].toLowerCase()]
+      let value = toNumber(m[1])
+      if (m[2] && m[2].toLowerCase() in SUFFIX_VALUE) {
+        value *= SUFFIX_VALUE[m[2].toLowerCase()]
+      }
+      if (isNaN(value) || value <= 0) continue
+      const matchedStr = m[0]
+      let rest = trimmed.replace(matchedStr, ' ').trim()
+      const inrAmount = Math.round(value * rate * 100) / 100
+      return {
+        amount: inrAmount,
+        rest,
+        originalAmount: currency !== 'INR' ? value : undefined,
+        originalCurrency: currency !== 'INR' ? currency : undefined,
+        convertedNote: currency !== 'INR' ? `(${currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : ''}${value} ≈ ₹${inrAmount.toLocaleString('en-IN')})` : undefined,
+      }
+    }
+  }
+
+  // 2. Check foreign currency with suffix (21$, 21 usd, 21 dollars, 15 eur, 10 gbp, 50 aed, etc.)
+  const suffixPatterns: { pat: RegExp; currency: string; rate: number }[] = [
+    { pat: /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?\s*(\$|usd|dollars?|bucks)\b/i, currency: 'USD', rate: FX_RATES_TO_INR.USD },
+    { pat: /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?\s*(\$)/i, currency: 'USD', rate: FX_RATES_TO_INR.USD },
+    { pat: /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?\s*(€|eur|euros?)\b/i, currency: 'EUR', rate: FX_RATES_TO_INR.EUR },
+    { pat: /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?\s*(£|gbp|pounds?)\b/i, currency: 'GBP', rate: FX_RATES_TO_INR.GBP },
+    { pat: /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?\s*(aed|dirhams?)\b/i, currency: 'AED', rate: FX_RATES_TO_INR.AED },
+    { pat: /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?\s*cad\b/i, currency: 'CAD', rate: FX_RATES_TO_INR.CAD },
+    { pat: /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?\s*aud\b/i, currency: 'AUD', rate: FX_RATES_TO_INR.AUD },
+    { pat: /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?\s*sgd\b/i, currency: 'SGD', rate: FX_RATES_TO_INR.SGD },
+    { pat: /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)?\s*(?:rs|inr|rupees?|rupee)\b/i, currency: 'INR', rate: 1.0 },
+    { pat: /([\d,]+(?:\.\d+)?)\s*rs\b/i, currency: 'INR', rate: 1.0 },
+    { pat: /([\d,]+(?:\.\d+)?)\s*(k|thousand|lakh|lac|crore)\b/i, currency: 'INR', rate: 1.0 },
+    { pat: /([\d,]+(?:\.\d+)?)/, currency: 'INR', rate: 1.0 },
+  ]
+
+  for (const { pat, currency, rate } of suffixPatterns) {
+    const m = trimmed.match(pat)
+    if (m) {
+      let value = toNumber(m[1])
+      if (m[2] && m[2].toLowerCase() in SUFFIX_VALUE) {
+        value *= SUFFIX_VALUE[m[2].toLowerCase()]
       }
       if (isNaN(value) || value <= 0) continue
       const matchedStr = m[0]
       let rest = trimmed.replace(matchedStr, ' ')
-      // clean leftover currency words that belonged to the amount token
-      rest = rest.replace(/\b(rs|inr|rupees?|rupee|₹)\b/gi, ' ').trim()
-      return { amount: Math.round(value * 100) / 100, rest }
+      rest = rest.replace(/\b(rs|inr|rupees?|rupee|₹|\$|usd|dollars?|eur|euros?|gbp|pounds?|aed|cad|aud|sgd)\b/gi, ' ').trim()
+      const inrAmount = Math.round(value * rate * 100) / 100
+      return {
+        amount: inrAmount,
+        rest,
+        originalAmount: currency !== 'INR' ? value : undefined,
+        originalCurrency: currency !== 'INR' ? currency : undefined,
+        convertedNote: currency !== 'INR' ? `(${currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency === 'GBP' ? '£' : ''}${value} ≈ ₹${inrAmount.toLocaleString('en-IN')})` : undefined,
+      }
     }
   }
+
   return null
 }
 
@@ -229,6 +294,15 @@ export function parseLine(
   }
   // Capitalize first letter
   description = description.charAt(0).toUpperCase() + description.slice(1)
+
+  // If foreign currency was converted, note the original amount in description
+  if (amountRes.originalCurrency && amountRes.originalAmount) {
+    const sym = amountRes.originalCurrency === 'USD' ? '$' : amountRes.originalCurrency === 'EUR' ? '€' : amountRes.originalCurrency === 'GBP' ? '£' : amountRes.originalCurrency + ' '
+    const tag = `(${sym}${amountRes.originalAmount})`
+    if (!description.includes(tag) && !description.includes(`${sym}${amountRes.originalAmount}`)) {
+      description = `${description} ${tag}`
+    }
+  }
 
   // Category resolution: override > user rule > keyword guess
   let category: string

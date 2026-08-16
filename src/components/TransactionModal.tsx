@@ -5,6 +5,7 @@ import { Transaction } from '@/lib/types'
 import { Modal } from './ui/Modal'
 import { Field } from './ui/Misc'
 import { todayISO, money } from '@/lib/format'
+import { extractAmount } from '@/lib/parser'
 import { cn } from '@/lib/utils'
 import { Trash2, AlertTriangle } from 'lucide-react'
 
@@ -20,6 +21,8 @@ export function TransactionModal({
   const { db, addTransactions, updateTransaction, deleteTransactions } = useApp()
   const { toast } = useToast()
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [amountText, setAmountText] = useState(transaction ? String(transaction.amount) : '')
+  const [conversionHint, setConversionHint] = useState<string | null>(null)
   const [form, setForm] = useState(() =>
     transaction
       ? {
@@ -45,6 +48,29 @@ export function TransactionModal({
           notes: '',
         }
   )
+
+  const handleAmountChange = (val: string) => {
+    setAmountText(val)
+    if (!val.trim()) {
+      setForm((prev) => ({ ...prev, amount: 0 }))
+      setConversionHint(null)
+      return
+    }
+
+    const extracted = extractAmount(val)
+    if (extracted && extracted.amount > 0) {
+      setForm((prev) => ({ ...prev, amount: extracted.amount }))
+      if (extracted.originalCurrency && extracted.originalAmount) {
+        setConversionHint(`Converted: ${extracted.originalCurrency} ${extracted.originalAmount} ≈ ₹${extracted.amount.toLocaleString('en-IN')}`)
+      } else {
+        setConversionHint(null)
+      }
+    } else {
+      const num = parseFloat(val.replace(/[^\d.]/g, ''))
+      setForm((prev) => ({ ...prev, amount: isNaN(num) ? 0 : num }))
+      setConversionHint(null)
+    }
+  }
 
   const parents = db.categories.filter((c) => !c.parentId && c.type === form.type)
   const subcats = db.categories.filter((c) => c.parentId === form.categoryId)
@@ -124,13 +150,15 @@ export function TransactionModal({
           <div className="grid grid-cols-2 gap-3">
             <Field label="Amount (₹)">
               <input
-                type="number"
-                min={0}
-                value={form.amount || ''}
-                onChange={(e) => setForm({ ...form, amount: +e.target.value })}
+                type="text"
+                value={amountText}
+                onChange={(e) => handleAmountChange(e.target.value)}
                 className="input tabular font-semibold"
-                placeholder="0"
+                placeholder="e.g. 200 or $21"
               />
+              {conversionHint && (
+                <p className="mt-1 text-[11px] text-accent font-medium">{conversionHint}</p>
+              )}
             </Field>
             <Field label="Date">
               <input

@@ -92,7 +92,8 @@ function systemPrompt(categories: { name: string; subs: string[] }[], today: str
   const tree = categories.map((c) => (c.subs.length ? `${c.name}: ${c.subs.join(', ')}` : c.name)).join('\n')
   return `You convert short personal-finance notes written in Indian English into structured transactions.
 
-Today is ${today}. Amounts are Indian rupees. "2k" means 2000, "1.5 lakh" means 150000, "1 crore" means 10000000.
+Today is ${today}. Amounts must be converted to Indian rupees (INR). "2k" means 2000, "1.5 lakh" means 150000, "1 crore" means 10000000.
+If the note mentions foreign currency (e.g. $21, 21 USD, €15, £10, 50 AED), convert it to INR (assume 1 USD = 87.5 INR, 1 EUR = 95.0 INR, 1 GBP = 112.0 INR, 1 AED = 23.8 INR) and note the original amount in description e.g. "Domain Renewal ($21)".
 
 Available categories (use these names exactly, or omit):
 ${tree}
