@@ -14,6 +14,7 @@ const FREQS: Frequency[] = ['daily', 'weekly', 'biweekly', 'monthly', 'quarterly
 export function Recurring() {
   const { db, upsertRecurring, deleteRecurring, addTransactions } = useApp()
   const [editing, setEditing] = useState<RecurringItem | 'new' | null>(null)
+  const [toDelete, setToDelete] = useState<RecurringItem | null>(null)
 
   const sorted = useMemo(() => {
     const list = [...db.recurring]
@@ -99,19 +100,21 @@ export function Recurring() {
                     {!r.active && <Badge>Inactive</Badge>}
                     {r.autoCreate && <Badge tone="accent">Auto</Badge>}
                   </div>
-                  <div className="text-xs capitalize text-base-muted">{r.frequency} · {cat?.name}{r.subcategoryId ? ` → ${db.categories.find((c) => c.id === r.subcategoryId)?.name}` : ''}</div>
-                  {r.nextDueDate && <div className="mt-1 text-xs text-base-muted">Next due: <span className={cn('font-semibold', r.nextDueDate <= todayISO() ? 'text-warning' : '')}>{formatDate(r.nextDueDate)}</span>{r.nextDueDate <= todayISO() ? ' · due now' : ''}</div>}
+                  <div className="text-xs text-base-muted">
+                    {r.frequency}
+                    {r.nextDueDate && ` · due ${formatDate(r.nextDueDate)}`}
+                  </div>
                 </div>
-                <div className="tabular text-lg font-bold">{r.type === 'income' ? '+' : '−'}{money(r.amount)}</div>
-                {r.nextDueDate && r.nextDueDate <= todayISO() && !r.autoCreate && (
+                <div className="tabular text-lg font-bold">{money(r.amount)}</div>
+                {r.active && (
                   <>
-                    <button onClick={() => markPaid(r)} className="btn-primary !py-1.5 text-xs"><Check className="h-3.5 w-3.5" /> {r.type === 'income' ? 'Mark received' : 'Mark paid'}</button>
-                    <button onClick={() => skip(r)} className="btn-secondary !py-1.5 text-xs"><SkipForward className="h-3.5 w-3.5" /> Skip</button>
+                    <button onClick={() => markPaid(r)} className="btn-secondary !py-1.5 text-xs"><Check className="h-3.5 w-3.5" /> Mark paid</button>
+                    <button onClick={() => skip(r)} className="btn-ghost !py-1.5 text-xs"><SkipForward className="h-3.5 w-3.5" /> Skip</button>
                   </>
                 )}
                 <div className="flex gap-1">
                   <button onClick={() => setEditing(r)} className="rounded-lg p-1.5 text-base-muted hover:bg-base/5" aria-label="Edit"><Pencil className="h-4 w-4" /></button>
-                  <button onClick={() => deleteRecurring(r.id)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
+                  <button onClick={() => setToDelete(r)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
             )
@@ -120,6 +123,30 @@ export function Recurring() {
       )}
 
       {editing && <RecurringModal recurring={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSave={(r) => { upsertRecurring(r); setEditing(null) }} />}
+
+      {toDelete && (
+        <Modal open onClose={() => setToDelete(null)} title="Delete Recurring Item" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-base-muted">
+              Are you sure you want to delete the recurring item <strong className="text-base">{toDelete.name}</strong>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setToDelete(null)} className="btn-ghost">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteRecurring(toDelete.id)
+                  setToDelete(null)
+                }}
+                className="btn-primary !bg-red-600 hover:!bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

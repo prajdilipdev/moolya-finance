@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 export function Budgets() {
   const { db, upsertBudget, deleteBudget } = useApp()
   const [editing, setEditing] = useState<Budget | 'new' | null>(null)
+  const [toDelete, setToDelete] = useState<Budget | null>(null)
   const range = rangeForPeriod('thisMonth')
 
   const statuses = useMemo(
@@ -65,7 +66,7 @@ export function Budgets() {
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => setEditing(s.budget)} className="rounded-lg p-1.5 text-base-muted hover:bg-base/5" aria-label="Edit"><Pencil className="h-4 w-4" /></button>
-                    <button onClick={() => deleteBudget(s.budget.id)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => setToDelete(s.budget)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
 
@@ -92,6 +93,30 @@ export function Budgets() {
           onClose={() => setEditing(null)}
           onSave={(b) => { upsertBudget(b); setEditing(null) }}
         />
+      )}
+
+      {toDelete && (
+        <Modal open onClose={() => setToDelete(null)} title="Delete Budget" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-base-muted">
+              Are you sure you want to delete the budget <strong className="text-base">{toDelete.name}</strong>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setToDelete(null)} className="btn-ghost">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteBudget(toDelete.id)
+                  setToDelete(null)
+                }}
+                className="btn-primary !bg-red-600 hover:!bg-red-700"
+              >
+                Delete Budget
+              </button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )

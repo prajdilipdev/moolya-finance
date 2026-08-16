@@ -2,6 +2,7 @@ import React, { useRef, useState } from 'react'
 import { Download, Upload, Trash2, Plus, RefreshCw, Sun, Moon, Monitor, Save, Check, ShieldCheck, LogOut, Cloud, CloudOff, Loader2 } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { useAuth } from '@/context/AuthContext'
+import { useToast } from '@/context/ToastContext'
 import { importJSON } from '@/lib/store'
 import { downloadFile, formatDate } from '@/lib/format'
 import { Segmented, Field } from '@/components/ui/Misc'
@@ -27,6 +28,7 @@ export function Settings() {
     replaceDB,
   } = useApp()
   const auth = useAuth()
+  const { toast } = useToast()
   const [tab, setTab] = useState('account')
   const fileRef = useRef<HTMLInputElement>(null)
   const [saved, setSaved] = useState(false)
@@ -38,6 +40,7 @@ export function Settings() {
 
   const flash = () => {
     setSaved(true)
+    toast({ title: 'Settings saved', message: 'Your profile changes were saved successfully.', tone: 'success' })
     setTimeout(() => setSaved(false), 1500)
   }
 
@@ -47,9 +50,9 @@ export function Settings() {
       try {
         const ndb = importJSON(String(reader.result))
         replaceDB(ndb)
-        alert('Backup restored successfully.')
+        toast({ title: 'Backup restored', message: 'Your data has been restored from backup file.', tone: 'success' })
       } catch {
-        alert('Could not restore backup: invalid file.')
+        toast({ title: 'Restore failed', message: 'Could not restore backup: invalid file format.', tone: 'warning' })
       }
     }
     reader.readAsText(file)

@@ -230,7 +230,7 @@ export function Layout() {
       </Modal>
 
       <Onboarding />
-      <CommandPalette open={palette} onClose={() => setPalette(false)} />
+      <CommandPalette open={palette} onClose={() => setPalette(false)} onOpenQuickAdd={() => setQuickAdd(true)} />
     </div>
   )
 }

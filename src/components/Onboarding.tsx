@@ -97,7 +97,7 @@ export function Onboarding() {
                 </Field>
                 <Field label="Currency">
                   <select value={form.currency} onChange={(e) => setForm({ ...form, currency: e.target.value })} className="input">
-                    {['INR', 'USD', 'EUR', 'GBP'].map((c) => <option key={c} value={c}>{c}</option>)}
+                    {['INR', 'USD', 'EUR', 'GBP', 'AED', 'CAD', 'AUD', 'SGD'].map((c) => <option key={c} value={c}>{c}</option>)}
                   </select>
                 </Field>
               </div>

@@ -232,5 +232,8 @@ export function Analytics() {
 
 function useStateGranularity(key: string): [string, (v: string) => void] {
   const [g, setG] = React.useState<string>(key === 'thisYear' || key === 'lastYear' ? 'monthly' : key === 'all' ? 'yearly' : 'daily')
+  React.useEffect(() => {
+    setG(key === 'thisYear' || key === 'lastYear' ? 'monthly' : key === 'all' ? 'yearly' : 'daily')
+  }, [key])
   return [g, setG]
 }

@@ -19,7 +19,15 @@ const COMMANDS = [
   { id: 'settings', label: 'Open settings', icon: Settings, to: '/settings' },
 ]
 
-export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function CommandPalette({
+  open,
+  onClose,
+  onOpenQuickAdd,
+}: {
+  open: boolean
+  onClose: () => void
+  onOpenQuickAdd?: () => void
+}) {
   const { db } = useApp()
   const nav = useNavigate()
   const [q, setQ] = useState('')
@@ -41,9 +49,13 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     return db.transactions.filter((t) => t.description.toLowerCase().includes(query)).slice(0, 6)
   }, [q, db.transactions])
 
-  const go = (to: string) => {
+  const go = (cmdId: string, to: string) => {
     onClose()
-    nav(to)
+    if ((cmdId === 'addexpense' || cmdId === 'addincome') && onOpenQuickAdd) {
+      onOpenQuickAdd()
+    } else {
+      nav(to)
+    }
   }
 
   const filteredCommands = COMMANDS.filter((c) => c.label.toLowerCase().includes(q.toLowerCase()))
@@ -78,7 +90,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                 return (
                   <button
                     key={t.id}
-                    onClick={() => go('/transactions')}
+                    onClick={() => go('tx', '/transactions')}
                     className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-base/5"
                   >
                     <span className="flex h-8 w-8 items-center justify-center rounded-[9px]" style={{ backgroundColor: categoryColor(cat?.name) + '1A', color: categoryColor(cat?.name) }}>
@@ -96,7 +108,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
                 Commands
               </div>
               {filteredCommands.map((c) => (
-                <button key={c.id} onClick={() => go(c.to)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-base/5">
+                <button key={c.id} onClick={() => go(c.id, c.to)} className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left hover:bg-base/5">
                   <c.icon className="h-4 w-4 text-base-muted" />
                   <span className="flex-1 text-sm font-medium">{c.label}</span>
                   <ArrowRight className="h-4 w-4 text-base-muted/50" />

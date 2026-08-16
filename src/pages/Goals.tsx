@@ -12,6 +12,7 @@ export function Goals() {
   const { db, upsertGoal, deleteGoal, contributeGoal } = useApp()
   const [editing, setEditing] = useState<Goal | 'new' | null>(null)
   const [contributing, setContributing] = useState<Goal | null>(null)
+  const [toDelete, setToDelete] = useState<Goal | null>(null)
 
   const totalSaved = useMemo(() => db.goals.reduce((s, g) => s + g.currentAmount, 0), [db.goals])
   const totalTarget = useMemo(() => db.goals.reduce((s, g) => s + g.targetAmount, 0), [db.goals])
@@ -46,7 +47,7 @@ export function Goals() {
                   <div className="flex gap-1">
                     <button onClick={() => setContributing(g)} className="rounded-lg p-1.5 text-accent hover:bg-accent-soft" aria-label="Contribute"><ArrowUpRight className="h-4 w-4" /></button>
                     <button onClick={() => setEditing(g)} className="rounded-lg p-1.5 text-base-muted hover:bg-base/5"><Pencil className="h-4 w-4" /></button>
-                    <button onClick={() => deleteGoal(g.id)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => setToDelete(g)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
                 <div className="mt-4 flex items-end justify-between">
@@ -68,6 +69,29 @@ export function Goals() {
       {contributing && (
         <Modal open onClose={() => setContributing(null)} title={`Contribute to ${contributing.name}`} size="sm">
           <ContributeForm goal={contributing} onClose={() => setContributing(null)} onContribute={contributeGoal} />
+        </Modal>
+      )}
+      {toDelete && (
+        <Modal open onClose={() => setToDelete(null)} title="Delete Goal" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-base-muted">
+              Are you sure you want to delete the savings goal <strong className="text-base">{toDelete.name}</strong>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setToDelete(null)} className="btn-ghost">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteGoal(toDelete.id)
+                  setToDelete(null)
+                }}
+                className="btn-primary !bg-red-600 hover:!bg-red-700"
+              >
+                Delete Goal
+              </button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

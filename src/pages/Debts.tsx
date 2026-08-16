@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils'
 export function Debts() {
   const { db, upsertDebt, deleteDebt } = useApp()
   const [editing, setEditing] = useState<Debt | 'new' | null>(null)
+  const [toDelete, setToDelete] = useState<Debt | null>(null)
 
   const totalBalance = useMemo(() => db.debts.reduce((s, d) => s + d.currentBalance, 0), [db.debts])
   const totalOriginal = useMemo(() => db.debts.reduce((s, d) => s + d.originalBalance, 0), [db.debts])
@@ -63,7 +64,7 @@ export function Debts() {
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => setEditing(d)} className="rounded-lg p-1.5 text-base-muted hover:bg-base/5"><Pencil className="h-4 w-4" /></button>
-                    <button onClick={() => deleteDebt(d.id)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => setToDelete(d)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
                 <div className="mt-4 flex items-end justify-between">
@@ -82,6 +83,30 @@ export function Debts() {
       )}
 
       {editing && <DebtModal debt={editing === 'new' ? null : editing} onClose={() => setEditing(null)} onSave={(d) => { upsertDebt(d); setEditing(null) }} />}
+
+      {toDelete && (
+        <Modal open onClose={() => setToDelete(null)} title="Delete Debt" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-base-muted">
+              Are you sure you want to delete <strong className="text-base">{toDelete.name}</strong>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setToDelete(null)} className="btn-ghost">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteDebt(toDelete.id)
+                  setToDelete(null)
+                }}
+                className="btn-primary !bg-red-600 hover:!bg-red-700"
+              >
+                Delete Debt
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

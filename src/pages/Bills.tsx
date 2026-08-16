@@ -13,6 +13,8 @@ export function Bills() {
   const { db, upsertBill, deleteBill, toggleBillPaid, upsertSubscription, deleteSubscription } = useApp()
   const [editBill, setEditBill] = useState<Bill | 'new' | null>(null)
   const [editSub, setEditSub] = useState<Subscription | 'new' | null>(null)
+  const [toDeleteBill, setToDeleteBill] = useState<Bill | null>(null)
+  const [toDeleteSub, setToDeleteSub] = useState<Subscription | null>(null)
 
   const bills = useMemo(() => [...db.bills].sort((a, b) => (a.paid === b.paid ? a.dueDate.localeCompare(b.dueDate) : a.paid ? 1 : -1)), [db.bills])
   const monthlySubCost = useMemo(() => db.subscriptions.filter((s) => s.active).reduce((s, x) => s + (x.frequency === 'monthly' ? x.amount : x.amount / 12), 0), [db.subscriptions])
@@ -49,7 +51,7 @@ export function Bills() {
                   <button onClick={() => toggleBillPaid(b.id)} className="btn-secondary !py-1.5 text-xs"><Check className="h-3.5 w-3.5" /> {b.paid ? 'Mark unpaid' : 'Mark paid'}</button>
                   <div className="flex gap-1">
                     <button onClick={() => setEditBill(b)} className="rounded-lg p-1.5 text-base-muted hover:bg-base/5"><Pencil className="h-4 w-4" /></button>
-                    <button onClick={() => deleteBill(b.id)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => setToDeleteBill(b)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
               )
@@ -82,7 +84,7 @@ export function Bills() {
                 <div className="tabular text-lg font-bold">{money(s.amount)}<span className="text-xs font-medium text-base-muted">/{s.frequency === 'monthly' ? 'mo' : 'yr'}</span></div>
                 <div className="flex gap-1">
                   <button onClick={() => setEditSub(s)} className="rounded-lg p-1.5 text-base-muted hover:bg-base/5"><Pencil className="h-4 w-4" /></button>
-                  <button onClick={() => deleteSubscription(s.id)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
+                  <button onClick={() => setToDeleteSub(s)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
             ))}
@@ -92,6 +94,54 @@ export function Bills() {
 
       {editBill && <BillModal bill={editBill === 'new' ? null : editBill} onClose={() => setEditBill(null)} onSave={(b) => { upsertBill(b); setEditBill(null) }} />}
       {editSub && <SubModal sub={editSub === 'new' ? null : editSub} onClose={() => setEditSub(null)} onSave={(s) => { upsertSubscription(s); setEditSub(null) }} />}
+
+      {toDeleteBill && (
+        <Modal open onClose={() => setToDeleteBill(null)} title="Delete Bill" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-base-muted">
+              Are you sure you want to delete the bill <strong className="text-base">{toDeleteBill.name}</strong>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setToDeleteBill(null)} className="btn-ghost">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteBill(toDeleteBill.id)
+                  setToDeleteBill(null)
+                }}
+                className="btn-primary !bg-red-600 hover:!bg-red-700"
+              >
+                Delete Bill
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
+      {toDeleteSub && (
+        <Modal open onClose={() => setToDeleteSub(null)} title="Delete Subscription" size="sm">
+          <div className="space-y-4">
+            <p className="text-sm text-base-muted">
+              Are you sure you want to delete the subscription <strong className="text-base">{toDeleteSub.name}</strong>?
+            </p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setToDeleteSub(null)} className="btn-ghost">
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  deleteSubscription(toDeleteSub.id)
+                  setToDeleteSub(null)
+                }}
+                className="btn-primary !bg-red-600 hover:!bg-red-700"
+              >
+                Delete Subscription
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }
