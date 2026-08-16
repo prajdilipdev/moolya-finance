@@ -1,6 +1,7 @@
 import { ParsedTransaction, TransactionType, Category, UserCategoryRule, DB } from './types'
 import { guessCategory, matchRuleToCategory, findOrCreateCategory } from './categories'
 import { todayISO, toISODate, addDays, uid } from './format'
+import { cleanNarration } from './bankParser'
 
 // ===========================================================================
 // Foreign Exchange Rates to INR (1 Foreign Unit = X INR)
@@ -420,6 +421,169 @@ export function looksLikeCSV(raw: string): boolean {
   return CSV_HEADER.test(first) && /date|type|description/i.test(first)
 }
 
+// ===========================================================================
+// Markdown & TSV Table Parser (e.g. | Date | Type | Narration | Category | Amount |)
+// ===========================================================================
+
+export function looksLikeTable(raw: string): boolean {
+  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  if (lines.length < 2) return false
+  const header = lines[0]
+  if (header.includes('|') && /date|type|narration|amount|category/i.test(header)) return true
+  if (header.includes('\t') && /date|type|narration|amount|category/i.test(header)) return true
+  return false
+}
+
+export function parseMarkdownOrTsvTable(
+  raw: string,
+  db: DB
+): { parsed: ParsedTransaction[]; errors: { line: string; reason: string }[] } {
+  const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  const parsed: ParsedTransaction[] = []
+  const errors: { line: string; reason: string }[] = []
+  if (lines.length < 2) return { parsed, errors }
+
+  const isMarkdown = lines[0].includes('|')
+
+  const splitCells = (line: string): string[] => {
+    if (isMarkdown) {
+      // Split by pipe and trim
+      const cells = line.split('|').map((s) => s.trim())
+      // Remove leading/trailing empty cells from markdown | border |
+      if (cells[0] === '') cells.shift()
+      if (cells[cells.length - 1] === '') cells.pop()
+      return cells
+    }
+    return line.split('\t').map((s) => s.trim())
+  }
+
+  const rawHeaders = splitCells(lines[0])
+  const headers = rawHeaders.map((h) => h.toLowerCase().replace(/[\s_()₹-]/g, ''))
+
+  const col = (...names: string[]) => {
+    for (const n of names) {
+      const idx = headers.findIndex((h) => h.includes(n) || n.includes(h))
+      if (idx !== -1) return idx
+    }
+    return -1
+  }
+
+  const idx = {
+    num: col('#', 'sno', 'no'),
+    date: col('date', 'transactiondate', 'valuedt'),
+    type: col('type', 'cr/dr', 'dr/cr', 'drcr'),
+    description: col('transaction/narration', 'narration', 'transaction', 'description', 'particulars', 'details'),
+    category: col('category', 'category/subcategory'),
+    amount: col('amount', 'amount₹', 'amt'),
+    debit: col('withdrawal', 'withdrawalamt', 'debit', 'dr'),
+    credit: col('deposit', 'depositamt', 'credit', 'cr'),
+  }
+
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i]
+    // Skip markdown separator lines like | -: | --- |
+    if (/^[|\s\-:]+$/.test(line)) continue
+
+    const cells = splitCells(line)
+    if (cells.length < 3) continue
+
+    // 1. Date
+    const rawDate = idx.date !== -1 ? cells[idx.date] : cells[1]
+    const parsedDate = detectDate(rawDate || '').date || todayISO()
+
+    // 2. Narration / Description
+    const rawNarration = idx.description !== -1 ? cells[idx.description] : cells[3] || 'Transaction'
+    const { description: cleanedDesc, paymentMethod } = cleanNarration(rawNarration)
+
+    // 3. Amount & Type
+    let amount = 0
+    let type: TransactionType = 'expense'
+
+    if (idx.debit !== -1 && idx.credit !== -1) {
+      const debVal = parseFloat((cells[idx.debit] || '').replace(/[^\d.-]/g, ''))
+      const credVal = parseFloat((cells[idx.credit] || '').replace(/[^\d.-]/g, ''))
+      if (!isNaN(credVal) && credVal > 0) {
+        amount = credVal
+        type = 'income'
+      } else if (!isNaN(debVal) && debVal > 0) {
+        amount = debVal
+        type = 'expense'
+      }
+    } else if (idx.amount !== -1) {
+      const amtStr = cells[idx.amount] || ''
+      amount = parseFloat(amtStr.replace(/[^\d.-]/g, ''))
+      const rawType = idx.type !== -1 ? (cells[idx.type] || '').toLowerCase() : ''
+      if (rawType.includes('credit') || rawType === 'cr' || rawType === '+' || rawType.includes('income')) {
+        type = 'income'
+      } else if (rawType.includes('debit') || rawType === 'dr' || rawType === '-' || rawType.includes('expense')) {
+        type = 'expense'
+      } else {
+        type = detectType(rawNarration)
+      }
+    }
+
+    if (isNaN(amount) || amount <= 0) {
+      errors.push({ line, reason: 'Invalid amount.' })
+      continue
+    }
+
+    // 4. Category from table or auto-categorize
+    let category = 'Other'
+    let subcategory: string | null = null
+
+    const rawCat = idx.category !== -1 ? cells[idx.category] : ''
+    if (rawCat && rawCat !== '—') {
+      const parts = rawCat.split(/[/–-]/).map((s) => s.trim()).filter(Boolean)
+      category = parts[0] || 'Other'
+      subcategory = parts[1] || null
+
+      // Normalize common table labels to standard app categories
+      if (/food|dining/i.test(category)) {
+        category = 'Food'
+        if (!subcategory) subcategory = 'Dining Out'
+      } else if (/shopping|store|online purchase/i.test(category)) {
+        category = 'Shopping'
+        if (!subcategory) subcategory = 'Online Purchase'
+      } else if (/internet|telecom|mobile|phone/i.test(category)) {
+        category = 'Bills'
+        subcategory = /mobile/i.test(rawCat) ? 'Mobile' : 'Internet'
+      } else if (/subscription|software|digital services/i.test(category)) {
+        category = 'Subscriptions'
+        subcategory = null
+      } else if (/pension|apy|insurance/i.test(category)) {
+        category = 'Bills'
+        subcategory = 'Insurance'
+      } else if (/travel|rail|vehicle|auto repair|transport/i.test(category)) {
+        category = 'Transportation'
+        if (/rail|train|irctc/i.test(rawCat)) subcategory = 'Train'
+        else if (/repair|puncter|tyre/i.test(rawCat)) subcategory = 'Maintenance'
+      } else if (/transfer received|income/i.test(category) || type === 'income') {
+        category = 'Income'
+        if (/paypal|freelance/i.test(rawNarration)) subcategory = 'Freelance'
+        else if (/transfer/i.test(rawCat)) subcategory = 'Transfer Received'
+      }
+    } else {
+      const g = guessCategory(cleanedDesc + ' ' + rawNarration)
+      category = g.category
+      subcategory = g.subcategory
+    }
+
+    parsed.push({
+      amount: Math.round(amount * 100) / 100,
+      currency: 'INR',
+      type,
+      description: cleanedDesc,
+      category,
+      subcategory,
+      date: parsedDate,
+      paymentMethod: paymentMethod || 'Bank',
+      confidence: 0.99,
+    })
+  }
+
+  return { parsed, errors }
+}
+
 export function parseCSV(raw: string): { parsed: ParsedTransaction[]; errors: { line: string; reason: string }[] } {
   const lines = raw.split(/\r?\n/).filter((l) => l.trim())
   const parsed: ParsedTransaction[] = []
@@ -483,6 +647,7 @@ export function parseBlock(
   db: DB,
   contextDate?: string
 ): { parsed: ParsedTransaction[]; errors: { line: string; reason: string }[] } {
+  if (looksLikeTable(raw)) return parseMarkdownOrTsvTable(raw, db)
   if (looksLikeCSV(raw)) return parseCSV(raw)
   const lines = splitInput(raw)
   const parsed: ParsedTransaction[] = []
