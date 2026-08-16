@@ -166,6 +166,37 @@ Set up rent, salary, subscriptions, EMIs etc. as recurring items. On the due dat
 
 ---
 
+## Optional: AI fallback for Quick Add
+
+The local parser handles every documented format instantly and offline. AI is consulted **only** when it can add something the parser couldn't: nothing parsed at all, or every result came back below 0.6 confidence. Rows that came from AI are labelled in the review panel, and you still confirm before anything is saved.
+
+**Why this needs a server.** The app is a browser-only SPA, so an AI key in a `VITE_` variable would be published to anyone who opens devtools — and would be billed to you. The key lives in a Supabase Edge Function instead, which checks you're signed in before spending it. The browser never sees it.
+
+```bash
+supabase functions deploy parse-transaction
+```
+
+```bash
+supabase secrets set OPENROUTER_API_KEY=sk-or-v1-your-key-here
+```
+
+The model defaults to `anthropic/claude-opus-5` and is overridable — set `OPENROUTER_MODEL` to any id from [openrouter.ai/models](https://openrouter.ai/models) if you want a cheaper or different one:
+
+```bash
+supabase secrets set OPENROUTER_MODEL=anthropic/claude-haiku-4.5
+```
+
+Skip the deploy and nothing breaks: `parseWithAI` fails soft and the local parser stays in charge.
+
+**What the function does with the model's output:** treats it as untrusted input. Amounts must be finite and positive, `type` is coerced to `income`/`expense`, dates must be ISO, and **categories are matched against your actual category list** — the model cannot invent one. Anything that fails validation is dropped rather than saved.
+
+| File | Role |
+|---|---|
+| `supabase/functions/parse-transaction/index.ts` | Edge function: auth check, prompt, provider call, strict output validation |
+| `src/lib/ai.ts` | Client caller; returns `null` on any failure so the local parser takes over |
+
+---
+
 ## Backups
 
 - **Export:** `Settings → Data` (full JSON backup) or `Reports` (monthly CSV / full JSON).

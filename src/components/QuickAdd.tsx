@@ -4,6 +4,7 @@ import { Sparkles, Loader2, Check, Pencil, X, Calculator, Plus, ArrowUpRight, Ar
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { parseBlock, parseLine, tryCalculator } from '@/lib/parser'
+import { isAIAvailable, parseWithAI } from '@/lib/ai'
 import { ParsedTransaction } from '@/lib/types'
 import { money, todayISO } from '@/lib/format'
 import { Modal } from './ui/Modal'
@@ -21,6 +22,7 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
   const [errors, setErrors] = useState<{ line: string; reason: string }[]>([])
   const [errorFlash, setErrorFlash] = useState(false)
   const [editingIndex, setEditingIndex] = useState<number | null>(null)
+  const [usedAI, setUsedAI] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const calc = tryCalculator(text)
@@ -45,19 +47,49 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
     }
   }, [stage])
 
-  const handleSubmit = (e?: React.FormEvent) => {
+  /**
+   * The local parser runs first and handles every documented format instantly
+   * and offline. AI is only consulted when it can actually add something:
+   * nothing parsed at all, or the parser was unsure of the category.
+   */
+  const handleSubmit = async (e?: React.FormEvent) => {
     e?.preventDefault()
     if (!text.trim() || stage === 'parsing') return
+
     const { parsed, errors: errs } = parseBlock(text, db)
-    if (parsed.length === 0) {
+    const lowConfidence = parsed.length > 0 && parsed.every((p) => p.confidence < 0.6)
+    const worthAsking = isAIAvailable() && (parsed.length === 0 || lowConfidence)
+
+    if (parsed.length === 0 && !worthAsking) {
       setErrorFlash(true)
       setErrors(errs)
       setTimeout(() => setErrorFlash(false), 600)
       return
     }
-    setResults(parsed)
+
     setErrors(errs)
     setStage('parsing')
+
+    if (worthAsking) {
+      setUsedAI(false)
+      const ai = await parseWithAI(text, db.categories)
+      if (ai && ai.length > 0) {
+        setResults(ai)
+        setUsedAI(true)
+        setStage('review')
+        return
+      }
+      if (parsed.length === 0) {
+        // AI unavailable or unhelpful, and the local parser found nothing either.
+        setStage('idle')
+        setErrorFlash(true)
+        setErrors(errs)
+        setTimeout(() => setErrorFlash(false), 600)
+        return
+      }
+    }
+
+    setResults(parsed)
     setTimeout(() => setStage('review'), 380)
   }
 
@@ -187,6 +219,11 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
                 <span className="text-sm text-base-muted">Analyzing &amp; categorizing…</span>
               </div>
             )}
+            {stage === 'review' && usedAI && (
+              <div className="border-b bg-accent-soft/40 px-5 py-2 text-xs text-accent">
+                The local parser wasn't confident, so this was read by AI. Check it before saving.
+              </div>
+            )}
             {stage === 'success' && (
               <div className="flex items-center gap-3 px-5 py-4 text-positive">
                 <Check className="h-5 w-5" />
@@ -197,8 +234,13 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
               <div>
                 <div className="border-b px-5 py-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold">
+                    <span className="flex items-center gap-2 text-sm font-bold">
                       {results.length} transaction{results.length > 1 ? 's' : ''} detected
+                      {usedAI && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-accent-soft px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent">
+                          <Sparkles className="h-3 w-3" /> AI
+                        </span>
+                      )}
                     </span>
                     {errors.length > 0 && (
                       <span className="text-xs text-warning">{errors.length} line{errors.length > 1 ? 's' : ''} unparsed</span>
