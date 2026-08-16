@@ -1,11 +1,26 @@
 import React, { useMemo, useRef, useState } from 'react'
-import { Upload, Sparkles, Download, Trash2, Check, RefreshCw, Copy } from 'lucide-react'
+import {
+  Upload,
+  Sparkles,
+  Download,
+  Trash2,
+  Check,
+  RefreshCw,
+  Copy,
+  FileText,
+  FileSpreadsheet,
+  Lock,
+  Loader2,
+  AlertTriangle,
+  Building2,
+} from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { ParsedTransaction } from '@/lib/types'
 import { parseBlock, looksLikeCSV } from '@/lib/parser'
-import { money, todayISO, downloadFile, formatDateShort } from '@/lib/format'
-import { Badge, Field } from '@/components/ui/Misc'
+import { parseExcelOrCsvStatement, parsePdfStatement } from '@/lib/bankParser'
+import { money, todayISO, downloadFile } from '@/lib/format'
+import { Badge, Segmented } from '@/components/ui/Misc'
 import { cn } from '@/lib/utils'
 
 const SAMPLE = `August 16
@@ -25,6 +40,7 @@ Or use marks & categories:
 export function Import() {
   const { db, addParsedTransactions } = useApp()
   const { toast } = useToast()
+  const [tab, setTab] = useState<'bank' | 'text'>('bank')
   const [text, setText] = useState('')
   const [stage, setStage] = useState<'idle' | 'review' | 'done'>('idle')
   const [rows, setRows] = useState<ParsedTransaction[]>([])
@@ -32,18 +48,29 @@ export function Import() {
   const [skipDups, setSkipDups] = useState(true)
   const [importedCount, setImportedCount] = useState(0)
   const [skippedDups, setSkippedDups] = useState(0)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [loading, setLoading] = useState(false)
 
-  const contextDate = todayISO()
+  // PDF password state
+  const [pendingPdfFile, setPendingPdfFile] = useState<ArrayBuffer | null>(null)
+  const [showPasswordModal, setShowPasswordModal] = useState(false)
+  const [pdfPassword, setPdfPassword] = useState('')
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+
+  const fileRef = useRef<HTMLInputElement>(null)
+  const bankFileRef = useRef<HTMLInputElement>(null)
 
   const duplicateIds = useMemo(() => {
-    const key = (p: ParsedTransaction) => `${p.date}|${p.type}|${p.amount}|${(p.description || '').toLowerCase().trim()}`
-    const dbKeys = new Set(db.transactions.map((t) => `${t.transactionDate}|${t.type}|${t.amount}|${t.description.toLowerCase().trim()}`))
+    const key = (p: ParsedTransaction) =>
+      `${p.date}|${p.type}|${p.amount}|${(p.description || '').toLowerCase().trim()}`
+    const dbKeys = new Set(
+      db.transactions.map((t) => `${t.transactionDate}|${t.type}|${t.amount}|${t.description.toLowerCase().trim()}`)
+    )
     return rows.map((r) => dbKeys.has(key(r)))
   }, [rows, db.transactions])
 
   const totals = useMemo(() => {
-    let income = 0, expenses = 0
+    let income = 0,
+      expenses = 0
     for (const r of rows) {
       if (r.type === 'income') income += r.amount
       else expenses += r.amount
@@ -51,7 +78,7 @@ export function Import() {
     return { income, expenses, net: income - expenses }
   }, [rows])
 
-  const analyze = () => {
+  const analyzeText = () => {
     const { parsed, errors: errs } = parseBlock(text, db)
     if (parsed.length === 0) {
       setErrors(errs)
@@ -62,13 +89,102 @@ export function Import() {
     setStage('review')
   }
 
-  const handleFile = (file: File) => {
-    const reader = new FileReader()
-    reader.onload = () => {
-      setText(String(reader.result || ''))
-      setStage('idle')
+  const handleBankFile = async (file: File) => {
+    const isPdf = file.name.toLowerCase().endsWith('.pdf')
+    const isExcel = /\.xlsx?$/i.test(file.name)
+    const isCsv = /\.csv$/i.test(file.name)
+
+    setLoading(true)
+    setPasswordError(null)
+
+    try {
+      if (isPdf) {
+        const buffer = await file.arrayBuffer()
+        setPendingPdfFile(buffer)
+        const res = await parsePdfStatement(buffer, null, db)
+        if (res.requiresPassword) {
+          setShowPasswordModal(true)
+          setLoading(false)
+          return
+        }
+        if (res.transactions.length > 0) {
+          setRows(res.transactions)
+          setStage('review')
+          toast({
+            title: 'Statement parsed',
+            message: `Extracted ${res.transactions.length} transactions from PDF`,
+            tone: 'success',
+          })
+        } else {
+          toast({
+            title: 'No transactions found',
+            message: 'Could not extract tabular transaction records from this PDF.',
+            tone: 'warning',
+          })
+        }
+      } else if (isExcel || isCsv) {
+        const buffer = await file.arrayBuffer()
+        const res = parseExcelOrCsvStatement(buffer, db)
+        if (res.transactions.length > 0) {
+          setRows(res.transactions)
+          setStage('review')
+          toast({
+            title: 'Statement parsed',
+            message: `Extracted ${res.transactions.length} transactions from spreadsheet`,
+            tone: 'success',
+          })
+        } else {
+          toast({
+            title: 'No transactions found',
+            message: 'Could not detect table columns (Date, Narration, Debit/Credit).',
+            tone: 'warning',
+          })
+        }
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Error reading file',
+        message: err?.message || 'Could not parse the bank statement file.',
+        tone: 'error',
+      })
+    } finally {
+      setLoading(false)
     }
-    reader.readAsText(file)
+  }
+
+  const submitPdfPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!pendingPdfFile || !pdfPassword) return
+
+    setLoading(true)
+    setPasswordError(null)
+    const res = await parsePdfStatement(pendingPdfFile, pdfPassword, db)
+
+    if (res.requiresPassword) {
+      setPasswordError('Incorrect password. Please try again.')
+      setLoading(false)
+      return
+    }
+
+    setShowPasswordModal(false)
+    setPdfPassword('')
+
+    if (res.transactions.length > 0) {
+      setRows(res.transactions)
+      setStage('review')
+      toast({
+        title: 'PDF unlocked & parsed',
+        message: `Extracted ${res.transactions.length} transactions successfully!`,
+        tone: 'success',
+      })
+    } else {
+      toast({
+        title: 'No transactions detected',
+        message: 'PDF was unlocked, but no transaction table rows were identified.',
+        tone: 'warning',
+      })
+    }
+    setLoading(false)
   }
 
   const updateRow = (i: number, patch: Partial<ParsedTransaction>) => {
@@ -87,56 +203,131 @@ export function Import() {
     setStage('done')
     toast({
       title: 'Import completed',
-      message: `${count} transactions added${dup ? ` · ${dup} duplicates skipped` : ''}`,
+      message: `${count} transactions saved to cloud database${dup ? ` · ${dup} duplicates skipped` : ''}`,
       tone: 'success',
     })
   }
 
   const downloadTemplate = () => {
-    downloadFile('import-template.csv', 'date,type,amount,currency,description,category,subcategory,payment_method\n2026-08-16,expense,200,INR,Pav Bhaji,Food,Street Food,UPI\n2026-08-16,income,25000,INR,Salary,Income,Salary,Bank', 'text/csv')
+    downloadFile(
+      'import-template.csv',
+      'date,type,amount,currency,description,category,subcategory,payment_method\n2026-08-16,expense,200,INR,Pav Bhaji,Food,Street Food,UPI\n2026-08-16,income,25000,INR,Salary,Income,Salary,Bank',
+      'text/csv'
+    )
   }
 
-  const catLabel = (name: string) => name || '—'
+  const importTabs = [
+    { value: 'bank', label: 'Bank Statement (PDF / Excel / CSV)' },
+    { value: 'text', label: 'Quick Text / Notes' },
+  ]
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Bulk Import</h2>
-          <p className="text-sm text-base-muted">Paste one transaction per line — Quick Add understands all formats</p>
+          <h2 className="text-xl font-bold">Import Transactions</h2>
+          <p className="text-sm text-base-muted">
+            Import statements from any Indian bank with auto-categorization and UPI cleaning
+          </p>
         </div>
         <div className="flex gap-2">
-          <button onClick={downloadTemplate} className="btn-secondary text-xs"><Download className="h-4 w-4" /> Template</button>
-          <button onClick={() => fileRef.current?.click()} className="btn-secondary text-xs"><Upload className="h-4 w-4" /> Upload file</button>
-          <input ref={fileRef} type="file" accept=".txt,.csv,text/plain,text/csv" className="hidden" onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])} />
+          <button onClick={downloadTemplate} className="btn-secondary text-xs">
+            <Download className="h-4 w-4" /> CSV Template
+          </button>
         </div>
       </div>
 
       {stage !== 'done' && (
+        <Segmented options={importTabs} value={tab} onChange={(v) => { setTab(v as 'bank' | 'text'); setStage('idle') }} />
+      )}
+
+      {/* Tab 1: Bank Statement Dropzone */}
+      {stage !== 'done' && tab === 'bank' && (
+        <div className="space-y-4">
+          <div
+            onClick={() => bankFileRef.current?.click()}
+            className="card flex flex-col items-center justify-center border-dashed border-2 border-emerald-500/30 bg-emerald-500/[0.02] p-10 text-center cursor-pointer transition-all hover:border-accent hover:bg-emerald-500/[0.05]"
+          >
+            <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#050A07,#0F2B1D)] text-emerald-400 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+              {loading ? <Loader2 className="h-7 w-7 animate-spin" /> : <Building2 className="h-7 w-7" />}
+            </div>
+            <h3 className="text-base font-bold">Upload Bank Statement</h3>
+            <p className="mt-1 text-sm text-base-muted max-w-md">
+              Drag & drop or click to upload your <span className="font-semibold text-base">PDF, Excel (.xlsx, .xls), or CSV</span> statement.
+            </p>
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-2">
+              <span className="inline-flex items-center gap-1 rounded-lg bg-card-muted px-2.5 py-1 text-xs font-medium text-base-muted">
+                <FileText className="h-3.5 w-3.5 text-accent" /> PDF (Protected & Regular)
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-lg bg-card-muted px-2.5 py-1 text-xs font-medium text-base-muted">
+                <FileSpreadsheet className="h-3.5 w-3.5 text-accent" /> Excel &amp; CSV
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-lg bg-card-muted px-2.5 py-1 text-xs font-medium text-base-muted">
+                <Sparkles className="h-3.5 w-3.5 text-accent" /> Auto UPI Cleaning
+              </span>
+            </div>
+            <input
+              ref={bankFileRef}
+              type="file"
+              accept=".pdf,.xlsx,.xls,.csv"
+              className="hidden"
+              onChange={(e) => e.target.files?.[0] && handleBankFile(e.target.files[0])}
+            />
+          </div>
+
+          <div className="card p-4">
+            <h4 className="text-xs font-bold uppercase tracking-wide text-base-muted mb-2">Supported Banks</h4>
+            <p className="text-xs text-base-muted leading-relaxed">
+              HDFC Bank, State Bank of India (SBI), ICICI Bank, Axis Bank, Kotak Mahindra, Bank of Baroda, Punjab National Bank, Standard Chartered, and all standard Indian UPI/NEFT statement formats.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Tab 2: Free Text / Notes Parser */}
+      {stage !== 'done' && tab === 'text' && (
         <div className="card p-5">
-          <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-muted"><Sparkles className="h-3.5 w-3.5 text-accent" /> Paste your data</label>
+          <label className="mb-1.5 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-base-muted">
+            <Sparkles className="h-3.5 w-3.5 text-accent" /> Paste your notes or SMS
+          </label>
           <textarea
             value={text}
-            onChange={(e) => { setText(e.target.value); setStage('idle') }}
-            rows={10}
+            onChange={(e) => {
+              setText(e.target.value)
+              setStage('idle')
+            }}
+            rows={8}
             placeholder={'200rs pav bhaji\n30rs pani poori\n- 500rs petrol\n+ 25000rs salary\n16/08/2026 - 1200rs electricity bill #Bills @UPI\n+ 2k cashback #Income/Cashback'}
             className="input font-mono text-sm"
           />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
             <div className="flex items-center gap-2">
-              <button onClick={() => { setText(SAMPLE); setStage('idle') }} className="btn-ghost text-xs"><Copy className="h-3.5 w-3.5" /> Use sample</button>
+              <button
+                onClick={() => {
+                  setText(SAMPLE)
+                  setStage('idle')
+                }}
+                className="btn-ghost text-xs"
+              >
+                <Copy className="h-3.5 w-3.5" /> Use sample
+              </button>
               {looksLikeCSV(text) && <Badge tone="accent">CSV detected</Badge>}
             </div>
-            <button onClick={analyze} className="btn-primary"><Sparkles className="h-4 w-4" /> Analyze &amp; preview</button>
+            <button onClick={analyzeText} className="btn-primary">
+              <Sparkles className="h-4 w-4" /> Analyze &amp; preview
+            </button>
           </div>
           {errors.length > 0 && stage === 'idle' && text.trim() && (
             <div className="mt-3 rounded-xl bg-warning-soft/60 p-3 text-sm text-warning">
-              {errors.map((e, i) => <div key={i}>Line “{e.line}” — {e.reason}</div>)}
+              {errors.map((e, i) => (
+                <div key={i}>Line “{e.line}” — {e.reason}</div>
+              ))}
             </div>
           )}
         </div>
       )}
 
+      {/* Stage: Review Table */}
       {stage === 'review' && (
         <div className="card overflow-hidden">
           <div className="border-b px-5 py-4">
@@ -144,27 +335,37 @@ export function Import() {
               <div>
                 <h3 className="text-lg font-bold">{rows.length} transaction{rows.length > 1 ? 's' : ''} detected</h3>
                 <p className="mt-1 text-sm text-base-muted">
-                  Income {money(totals.income)} · Expenses {money(totals.expenses)} · Net <span className={cn('font-semibold', totals.net >= 0 ? 'text-positive' : 'text-negative')}>{money(totals.net)}</span>
+                  Income <span className="font-semibold text-positive">{money(totals.income)}</span> · Expenses{' '}
+                  <span className="font-semibold text-negative">{money(totals.expenses)}</span> · Net{' '}
+                  <span className={cn('font-semibold', totals.net >= 0 ? 'text-positive' : 'text-negative')}>
+                    {money(totals.net)}
+                  </span>
                 </p>
               </div>
               <label className="flex items-center gap-2 text-sm text-base-muted">
-                <input type="checkbox" checked={skipDups} onChange={(e) => setSkipDups(e.target.checked)} className="h-4 w-4" />
+                <input
+                  type="checkbox"
+                  checked={skipDups}
+                  onChange={(e) => setSkipDups(e.target.checked)}
+                  className="h-4 w-4 rounded accent-emerald-500"
+                />
                 Skip duplicates automatically
               </label>
             </div>
           </div>
+
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[700px] text-sm">
               <thead>
                 <tr className="border-b bg-base/5 text-left text-[11px] font-semibold uppercase tracking-wide text-base-muted">
-                  <th className="px-3 py-2">Date</th>
-                  <th className="px-3 py-2">Type</th>
-                  <th className="px-3 py-2">Amount</th>
-                  <th className="px-3 py-2">Description</th>
-                  <th className="px-3 py-2">Category</th>
-                  <th className="px-3 py-2">Payment</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2" />
+                  <th className="px-3 py-2.5">Date</th>
+                  <th className="px-3 py-2.5">Type</th>
+                  <th className="px-3 py-2.5">Amount</th>
+                  <th className="px-3 py-2.5">Description (Cleaned)</th>
+                  <th className="px-3 py-2.5">Category</th>
+                  <th className="px-3 py-2.5">Payment</th>
+                  <th className="px-3 py-2.5">Status</th>
+                  <th className="px-3 py-2.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
@@ -172,52 +373,188 @@ export function Import() {
                   const dup = duplicateIds[i]
                   return (
                     <tr key={i} className="hover:bg-base/5">
-                      <td className="px-3 py-2"><input type="date" value={r.date || todayISO()} onChange={(e) => updateRow(i, { date: e.target.value })} className="input !py-1 text-xs" /></td>
                       <td className="px-3 py-2">
-                        <select value={r.type} onChange={(e) => updateRow(i, { type: e.target.value as 'income' | 'expense' })} className={cn('input !w-auto !py-1 text-xs font-semibold', r.type === 'income' ? 'text-positive' : 'text-negative')}>
-                          <option value="expense">Expense</option><option value="income">Income</option>
+                        <input
+                          type="date"
+                          value={r.date || todayISO()}
+                          onChange={(e) => updateRow(i, { date: e.target.value })}
+                          className="input !py-1 text-xs"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={r.type}
+                          onChange={(e) => updateRow(i, { type: e.target.value as 'income' | 'expense' })}
+                          className={cn(
+                            'input !w-auto !py-1 text-xs font-semibold',
+                            r.type === 'income' ? 'text-positive' : 'text-negative'
+                          )}
+                        >
+                          <option value="expense">Expense</option>
+                          <option value="income">Income</option>
                         </select>
                       </td>
-                      <td className="px-3 py-2"><input type="number" min={0} value={r.amount} onChange={(e) => updateRow(i, { amount: +e.target.value })} className="input !w-24 !py-1 text-xs tabular" /></td>
-                      <td className="px-3 py-2"><input value={r.description} onChange={(e) => updateRow(i, { description: e.target.value })} className="input !py-1 text-xs" /></td>
                       <td className="px-3 py-2">
-                        <div className="flex items-center gap-1">
-                          <select value={r.category} onChange={(e) => updateRow(i, { category: e.target.value, subcategory: null })} className="input !w-auto !py-1 text-xs">
-                            {db.categories.filter((c) => !c.parentId && c.type === r.type).map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
-                          </select>
-                        </div>
+                        <input
+                          type="number"
+                          min={0}
+                          value={r.amount}
+                          onChange={(e) => updateRow(i, { amount: +e.target.value })}
+                          className="input !w-24 !py-1 text-xs tabular"
+                        />
                       </td>
                       <td className="px-3 py-2">
-                        <select value={r.paymentMethod || ''} onChange={(e) => updateRow(i, { paymentMethod: e.target.value || null })} className="input !w-auto !py-1 text-xs">
+                        <input
+                          value={r.description}
+                          onChange={(e) => updateRow(i, { description: e.target.value })}
+                          className="input !py-1 text-xs"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={r.category}
+                          onChange={(e) => updateRow(i, { category: e.target.value, subcategory: null })}
+                          className="input !w-auto !py-1 text-xs"
+                        >
+                          {db.categories
+                            .filter((c) => !c.parentId && c.type === r.type)
+                            .map((c) => (
+                              <option key={c.id} value={c.name}>
+                                {c.name}
+                              </option>
+                            ))}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={r.paymentMethod || ''}
+                          onChange={(e) => updateRow(i, { paymentMethod: e.target.value || null })}
+                          className="input !w-auto !py-1 text-xs"
+                        >
                           <option value="">None</option>
-                          {db.paymentMethods.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
+                          {db.paymentMethods.map((p) => (
+                            <option key={p.id} value={p.name}>
+                              {p.name}
+                            </option>
+                          ))}
                         </select>
                       </td>
-                      <td className="px-3 py-2">{dup ? <Badge tone="warning">Duplicate</Badge> : <Badge tone="positive"><Check className="h-3 w-3" /> Ready</Badge>}</td>
-                      <td className="px-3 py-2"><button onClick={() => removeRow(i)} className="rounded-lg p-1 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button></td>
+                      <td className="px-3 py-2">
+                        {dup ? (
+                          <Badge tone="warning">Duplicate</Badge>
+                        ) : (
+                          <Badge tone="positive">
+                            <Check className="h-3 w-3" /> Ready
+                          </Badge>
+                        )}
+                      </td>
+                      <td className="px-3 py-2">
+                        <button
+                          onClick={() => removeRow(i)}
+                          className="rounded-lg p-1 text-base-muted hover:bg-negative-soft hover:text-negative"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </td>
                     </tr>
                   )
                 })}
               </tbody>
             </table>
           </div>
+
           <div className="flex flex-wrap items-center justify-end gap-2 border-t px-5 py-4">
-            <button onClick={() => setStage('idle')} className="btn-ghost">Back</button>
-            <button onClick={importAll} className="btn-primary"><Check className="h-4 w-4" /> Import {rows.length} transaction{rows.length > 1 ? 's' : ''}</button>
+            <button onClick={() => setStage('idle')} className="btn-ghost">
+              Back
+            </button>
+            <button onClick={importAll} className="btn-primary">
+              <Check className="h-4 w-4" /> Import {rows.length} transaction{rows.length > 1 ? 's' : ''}
+            </button>
           </div>
         </div>
       )}
 
+      {/* Stage: Done Screen */}
       {stage === 'done' && (
         <div className="card flex flex-col items-center justify-center p-12 text-center">
           <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-positive-soft">
             <Check className="h-8 w-8 text-positive" />
           </div>
-          <h3 className="text-xl font-bold">Import completed</h3>
-          <p className="mt-2 text-sm text-base-muted">{importedCount} transactions added · Income {money(totals.income)} · Expenses {money(totals.expenses)} · Net {money(totals.net)}</p>
-          {skippedDups > 0 && <p className="mt-1 text-xs text-warning">{skippedDups} duplicate{skippedDups > 1 ? 's' : ''} skipped</p>}
+          <h3 className="text-xl font-bold">Statement imported successfully!</h3>
+          <p className="mt-2 text-sm text-base-muted">
+            {importedCount} transactions saved to your Supabase Cloud Database · Income {money(totals.income)} · Expenses{' '}
+            {money(totals.expenses)} · Net {money(totals.net)}
+          </p>
+          {skippedDups > 0 && (
+            <p className="mt-1 text-xs text-warning">{skippedDups} duplicate{skippedDups > 1 ? 's' : ''} skipped</p>
+          )}
           <div className="mt-5 flex gap-2">
-            <button onClick={() => { setStage('idle'); setText(''); setRows([]) }} className="btn-secondary"><RefreshCw className="h-4 w-4" /> Import more</button>
+            <button
+              onClick={() => {
+                setStage('idle')
+                setText('')
+                setRows([])
+              }}
+              className="btn-secondary"
+            >
+              <RefreshCw className="h-4 w-4" /> Import another statement
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Password Modal for Protected Bank PDFs */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="card w-full max-w-sm p-6 space-y-4 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-emerald-500/10 text-accent">
+                <Lock className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold">PDF is Password-Protected</h3>
+                <p className="text-xs text-base-muted">Your bank locked this statement</p>
+              </div>
+            </div>
+
+            <p className="text-xs text-base-muted">
+              Most Indian banks use your <span className="font-semibold text-base">Date of Birth (DDMMYYYY)</span> or{' '}
+              <span className="font-semibold text-base">PAN number</span> as the password. Decryption happens 100% in your browser.
+            </p>
+
+            <form onSubmit={submitPdfPassword} className="space-y-3">
+              <input
+                type="password"
+                required
+                autoFocus
+                value={pdfPassword}
+                onChange={(e) => setPdfPassword(e.target.value)}
+                placeholder="Enter statement password"
+                className="input"
+              />
+
+              {passwordError && (
+                <div className="flex items-center gap-1.5 text-xs text-negative">
+                  <AlertTriangle className="h-3.5 w-3.5" /> {passwordError}
+                </div>
+              )}
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPasswordModal(false)
+                    setPdfPassword('')
+                  }}
+                  className="btn-ghost text-xs"
+                >
+                  Cancel
+                </button>
+                <button type="submit" disabled={loading} className="btn-primary text-xs">
+                  {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Lock className="h-3.5 w-3.5" />} Unlock &amp; Parse
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
