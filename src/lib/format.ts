@@ -7,8 +7,10 @@ export function uid(prefix = ''): string {
 export function money(amount: number, currency = 'INR'): string {
   const symbol = currencySymbol(currency)
   const val = Math.abs(amount)
+  const hasDecimals = Math.abs(Math.round(val) - val) > 0.0001
   return `${amount < 0 ? '-' : ''}${symbol}${new Intl.NumberFormat('en-IN', {
-    maximumFractionDigits: val % 1 === 0 ? 0 : 2,
+    minimumFractionDigits: hasDecimals ? 2 : 0,
+    maximumFractionDigits: 2,
   }).format(val)}`
 }
 
