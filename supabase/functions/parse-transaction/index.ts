@@ -5,6 +5,13 @@
 // This function is the server the app doesn't otherwise have — it holds the key
 // as a secret, checks the caller is signed in, and never returns the key.
 //
+// Auth is handled twice over, by design: the platform verifies the JWT before
+// this handler runs (verify_jwt defaults to true), and `withSupabase` with
+// auth: 'user' verifies the caller's claims against the project JWKS locally —
+// no round-trip to the Auth server per request. SUPABASE_URL, the keys, and
+// SUPABASE_JWKS_URL are injected automatically on Edge Functions; only the
+// OpenRouter key has to be set by hand.
+//
 // Deploy:
 //   supabase functions deploy parse-transaction
 //   supabase secrets set OPENROUTER_API_KEY=sk-or-v1-...
@@ -13,21 +20,17 @@
 // Request:  { text: string, categories: { name: string, subs: string[] }[] }
 // Response: { transactions: ParsedTransaction[] }  |  { error: string }
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
+import { withSupabase } from 'npm:@supabase/server'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const DEFAULT_MODEL = 'anthropic/claude-opus-5'
 const MAX_INPUT_CHARS = 2000
 const MAX_TRANSACTIONS = 25
 
-const cors = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-}
-
+// withSupabase owns CORS preflight and the unauthorized responses; these are
+// only the headers for the bodies this handler returns itself.
 const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { ...cors, 'Content-Type': 'application/json' } })
+  new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
 
 interface ParsedTransaction {
   amount: number
@@ -106,95 +109,89 @@ Rules:
 - If you cannot find an amount, return {"transactions":[]}.`
 }
 
-Deno.serve(async (req: Request) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
-  if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
+export default {
+  // auth: 'user' rejects anything without a valid user JWT before we get here,
+  // so reaching this body means the caller is signed in.
+  fetch: withSupabase({ auth: 'user' }, async (req: Request) => {
+    if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
-  const apiKey = Deno.env.get('OPENROUTER_API_KEY')
-  if (!apiKey) return json({ error: 'AI is not configured on the server.' }, 501)
+    const apiKey = Deno.env.get('OPENROUTER_API_KEY')
+    if (!apiKey) return json({ error: 'AI is not configured on the server.' }, 501)
 
-  // Only the signed-in owner may spend the key.
-  const authHeader = req.headers.get('Authorization') ?? ''
-  const supabase = createClient(
-    Deno.env.get('SUPABASE_URL') ?? '',
-    Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-    { global: { headers: { Authorization: authHeader } } }
-  )
-  const { data: { user }, error: authError } = await supabase.auth.getUser()
-  if (authError || !user) return json({ error: 'Sign in first.' }, 401)
+    let body: { text?: unknown; categories?: unknown }
+    try {
+      body = await req.json()
+    } catch {
+      return json({ error: 'Invalid JSON body.' }, 400)
+    }
 
-  let body: { text?: unknown; categories?: unknown }
-  try {
-    body = await req.json()
-  } catch {
-    return json({ error: 'Invalid JSON body.' }, 400)
-  }
+    const text = typeof body.text === 'string' ? body.text.trim().slice(0, MAX_INPUT_CHARS) : ''
+    if (!text) return json({ error: 'Nothing to parse.' }, 400)
 
-  const text = typeof body.text === 'string' ? body.text.trim().slice(0, MAX_INPUT_CHARS) : ''
-  if (!text) return json({ error: 'Nothing to parse.' }, 400)
+    const categories = Array.isArray(body.categories)
+      ? (body.categories as unknown[])
+          .filter((c): c is { name: string; subs: string[] } =>
+            !!c && typeof c === 'object' && typeof (c as { name?: unknown }).name === 'string')
+          .map((c) => ({ name: c.name, subs: Array.isArray(c.subs) ? c.subs.filter((s) => typeof s === 'string') : [] }))
+          .slice(0, 60)
+      : []
+    const allowed = new Map(categories.map((c) => [c.name, new Set(c.subs)]))
 
-  const categories = Array.isArray(body.categories)
-    ? (body.categories as unknown[])
-        .filter((c): c is { name: string; subs: string[] } =>
-          !!c && typeof c === 'object' && typeof (c as { name?: unknown }).name === 'string')
-        .map((c) => ({ name: c.name, subs: Array.isArray(c.subs) ? c.subs.filter((s) => typeof s === 'string') : [] }))
-        .slice(0, 60)
-    : []
-  const allowed = new Map(categories.map((c) => [c.name, new Set(c.subs)]))
+    const today = new Date().toISOString().slice(0, 10)
 
-  const today = new Date().toISOString().slice(0, 10)
+    let upstream: Response
+    try {
+      upstream = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'X-Title': 'Aavishkar Finance',
+        },
+        body: JSON.stringify({
+          model: Deno.env.get('OPENROUTER_MODEL') ?? DEFAULT_MODEL,
+          max_tokens: 1500,
+          response_format: { type: 'json_object' },
+          messages: [
+            { role: 'system', content: systemPrompt(categories, today) },
+            { role: 'user', content: text },
+          ],
+        }),
+      })
+    } catch {
+      return json({ error: 'Could not reach the AI provider.' }, 502)
+    }
 
-  let upstream: Response
-  try {
-    upstream = await fetch(OPENROUTER_URL, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-        'X-Title': 'Aavishkar Finance',
-      },
-      body: JSON.stringify({
-        model: Deno.env.get('OPENROUTER_MODEL') ?? DEFAULT_MODEL,
-        max_tokens: 1500,
-        response_format: { type: 'json_object' },
-        messages: [
-          { role: 'system', content: systemPrompt(categories, today) },
-          { role: 'user', content: text },
-        ],
-      }),
-    })
-  } catch {
-    return json({ error: 'Could not reach the AI provider.' }, 502)
-  }
+    if (!upstream.ok) {
+      // Surface the provider's message (e.g. an unknown model id) to the
+      // function log, but never to the client and never the key.
+      const detail = await upstream.text()
+      console.error('openrouter error', upstream.status, detail.slice(0, 500))
+      return json({ error: `AI provider returned ${upstream.status}.` }, 502)
+    }
 
-  if (!upstream.ok) {
-    // Surface the provider's message (e.g. an unknown model id) but never the key.
-    const detail = await upstream.text()
-    console.error('openrouter error', upstream.status, detail.slice(0, 500))
-    return json({ error: `AI provider returned ${upstream.status}.` }, 502)
-  }
+    const payload = await upstream.json().catch(() => null)
+    const content = payload?.choices?.[0]?.message?.content
+    if (typeof content !== 'string') return json({ error: 'Empty response from the AI provider.' }, 502)
 
-  const payload = await upstream.json().catch(() => null)
-  const content = payload?.choices?.[0]?.message?.content
-  if (typeof content !== 'string') return json({ error: 'Empty response from the AI provider.' }, 502)
+    // Models sometimes wrap JSON in prose or fences despite instructions.
+    const start = content.indexOf('{')
+    const end = content.lastIndexOf('}')
+    if (start === -1 || end <= start) return json({ transactions: [] })
 
-  // Models sometimes wrap JSON in prose or fences despite instructions.
-  const start = content.indexOf('{')
-  const end = content.lastIndexOf('}')
-  if (start === -1 || end <= start) return json({ transactions: [] })
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(content.slice(start, end + 1))
+    } catch {
+      return json({ transactions: [] })
+    }
 
-  let parsed: unknown
-  try {
-    parsed = JSON.parse(content.slice(start, end + 1))
-  } catch {
-    return json({ transactions: [] })
-  }
+    const list = (parsed as { transactions?: unknown })?.transactions
+    const transactions = (Array.isArray(list) ? list : [])
+      .slice(0, MAX_TRANSACTIONS)
+      .map((t) => validate(t, allowed))
+      .filter((t): t is ParsedTransaction => t !== null)
 
-  const list = (parsed as { transactions?: unknown })?.transactions
-  const transactions = (Array.isArray(list) ? list : [])
-    .slice(0, MAX_TRANSACTIONS)
-    .map((t) => validate(t, allowed))
-    .filter((t): t is ParsedTransaction => t !== null)
-
-  return json({ transactions })
-})
+    return json({ transactions })
+  }),
+}
