@@ -273,10 +273,31 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       let createdTransactions: Transaction[] = []
       let newCategories: Category[] = []
 
+      const dedupeKey = (date: string, type: string, amount: number, desc: string): string => {
+        const cleanDesc = (desc || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+        return `${date}|${type}|${Math.round(amount * 100)}|${cleanDesc}`
+      }
+
       update((d) => {
         let categories = d.categories
         const prevCatCount = categories.length
-        const items: Transaction[] = parsed.map((p) => {
+
+        // Deduplication against existing database transactions
+        const existingKeys = new Set(
+          d.transactions.map((t) => dedupeKey(t.transactionDate, t.type, t.amount, t.description))
+        )
+        const batchKeys = new Set<string>()
+
+        const filtered = parsed.filter((p) => {
+          const key = dedupeKey(p.date || todayISO(), p.type, p.amount, p.description)
+          if (existingKeys.has(key) || batchKeys.has(key)) {
+            return false // skip duplicate entry!
+          }
+          batchKeys.add(key)
+          return true
+        })
+
+        const items: Transaction[] = filtered.map((p) => {
           const res = materializeInto(p, categories)
           categories = res.categories
           return {

@@ -60,12 +60,14 @@ export function Import() {
   const bankFileRef = useRef<HTMLInputElement>(null)
 
   const duplicateIds = useMemo(() => {
-    const key = (p: ParsedTransaction) =>
-      `${p.date}|${p.type}|${p.amount}|${(p.description || '').toLowerCase().trim()}`
+    const dedupeKey = (date: string, type: string, amount: number, desc: string): string => {
+      const cleanDesc = (desc || '').toLowerCase().replace(/[^a-z0-9]/g, '')
+      return `${date}|${type}|${Math.round(amount * 100)}|${cleanDesc}`
+    }
     const dbKeys = new Set(
-      db.transactions.map((t) => `${t.transactionDate}|${t.type}|${t.amount}|${t.description.toLowerCase().trim()}`)
+      db.transactions.map((t) => dedupeKey(t.transactionDate, t.type, t.amount, t.description))
     )
-    return rows.map((r) => dbKeys.has(key(r)))
+    return rows.map((r) => dbKeys.has(dedupeKey(r.date || todayISO(), r.type, r.amount, r.description)))
   }, [rows, db.transactions])
 
   const totals = useMemo(() => {
