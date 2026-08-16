@@ -81,7 +81,7 @@ function AuthScreen() {
         className="w-full max-w-sm"
       >
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#0B172A,#16345C)] text-emerald-300 shadow-sm">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#050A07,#0F2B1D)] text-emerald-400 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
             <Sparkles className="h-6 w-6" />
           </div>
           <h1 className="text-xl font-extrabold tracking-tight">Aavishkar</h1>

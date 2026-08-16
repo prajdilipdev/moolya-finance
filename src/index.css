@@ -9,60 +9,61 @@
 
 :root {
   /* Surfaces */
-  --bg: 214 43% 98%;          /* #F7F9FC */
+  --bg: 150 20% 98%;          /* #F6FAF7 */
   --card: 0 0% 100%;          /* #FFFFFF */
-  --card-muted: 210 40% 96%;  /* #F1F5F9 */
-  --line: 214 32% 91%;        /* #E2E8F0 */
+  --card-muted: 150 15% 95%;  /* #EFF5F1 */
+  --line: 150 12% 89%;        /* #DEE7E2 */
 
   /* Text */
-  --base: 222 47% 11%;        /* #0F172A */
-  --base-muted: 215 16% 47%;  /* #64748B */
-  --muted: 215 20% 65%;       /* #94A3B8 */
+  --base: 160 30% 9%;         /* #0B1712 */
+  --base-muted: 155 12% 44%;  /* #627A6E */
+  --muted: 155 12% 64%;       /* #97ABA0 */
 
   /* Brand accent — emerald */
-  --accent: 160 84% 31%;      /* #059669 */
-  --accent-strong: 161 94% 25%;
-  --accent-soft: 152 60% 95%;
-  --accent-ring: 160 84% 39%;
+  --accent: 158 84% 34%;      /* #059669 */
+  --accent-strong: 158 90% 28%;
+  --accent-soft: 152 65% 94%;
+  --accent-ring: 158 84% 40%;
 
   /* Semantic */
-  --positive: 160 84% 39%;    /* #10B981 income */
-  --positive-soft: 152 60% 94%;
-  --negative: 3 62% 59%;      /* #E05252 expense */
+  --positive: 158 84% 38%;    /* #10B981 income */
+  --positive-soft: 152 65% 94%;
+  --negative: 3 68% 56%;      /* #DE4B4B expense */
   --negative-soft: 6 77% 95%;
-  --warning: 39 71% 50%;      /* #D99A24 */
+  --warning: 38 85% 48%;      /* #DC9318 */
   --warning-soft: 40 70% 95%;
-  --info: 217 91% 60%;        /* #3B82F6 */
+  --info: 217 91% 58%;        /* #3B82F6 */
   --info-soft: 214 100% 96%;
 
   color-scheme: light;
 }
 
 .dark {
-  /* Surfaces — deep navy */
-  --bg: 215 60% 7%;           /* #07111F */
-  --card: 210 53% 11%;        /* #0D1B2A */
-  --card-muted: 213 55% 15%;  /* #12243A */
-  --line: 213 45% 21%;        /* #1E3550 */
+  /* Surfaces — deep rich black */
+  --bg: 160 10% 4%;           /* #080C0A deep obsidian black */
+  --card: 160 8% 7.5%;        /* #101513 sleek elevated card */
+  --card-muted: 160 8% 11%;   /* #171E1A */
+  --line: 160 8% 15%;         /* #212B25 */
 
   /* Text */
-  --base: 210 40% 98%;        /* #F8FAFC */
-  --base-muted: 215 20% 70%;
-  --muted: 215 20% 58%;
+  --base: 150 20% 98%;        /* #F5FBF7 */
+  --base-muted: 155 12% 68%;  /* #A2B5AB */
+  --muted: 155 10% 48%;       /* #6E8277 */
 
-  --accent: 160 84% 45%;
-  --accent-strong: 160 84% 50%;
-  --accent-soft: 158 40% 16%;
-  --accent-ring: 160 84% 50%;
+  /* Vibrant Emerald Accent */
+  --accent: 158 84% 44%;      /* #10B981 glowing emerald */
+  --accent-strong: 158 90% 38%; /* #059669 */
+  --accent-soft: 158 60% 10%; /* subtle dark emerald tint */
+  --accent-ring: 158 84% 48%;
 
-  --positive: 160 84% 50%;
-  --positive-soft: 160 50% 14%;
-  --negative: 3 65% 63%;
-  --negative-soft: 3 50% 17%;
-  --warning: 39 90% 60%;
-  --warning-soft: 40 45% 16%;
-  --info: 217 91% 62%;
-  --info-soft: 217 50% 18%;
+  --positive: 158 84% 46%;    /* #10B981 */
+  --positive-soft: 158 55% 11%;
+  --negative: 3 70% 62%;
+  --negative-soft: 3 45% 14%;
+  --warning: 38 90% 58%;
+  --warning-soft: 38 40% 14%;
+  --info: 215 90% 60%;
+  --info-soft: 215 45% 15%;
 
   color-scheme: dark;
 }

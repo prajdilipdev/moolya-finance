@@ -86,9 +86,9 @@ export function Reports() {
         </div>
       </div>
 
-      <div className="card relative overflow-hidden bg-[#0B172A] p-6 text-white">
+      <div className="card relative overflow-hidden border-emerald-500/20 bg-[linear-gradient(145deg,#060C09,#0E1D16)] p-6 text-white shadow-[0_10px_30px_-10px_rgba(16,185,129,0.15)]">
         <div
-          className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-20"
+          className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-25"
           style={{ background: 'radial-gradient(circle, #10B981 0%, transparent 70%)' }}
         />
         <div className="relative">

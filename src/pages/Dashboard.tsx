@@ -80,15 +80,15 @@ export function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="card relative mt-4 overflow-hidden border-white/10 bg-[#0B172A] p-6 text-white"
+          className="card relative mt-4 overflow-hidden border-emerald-500/20 bg-[linear-gradient(145deg,#060C09,#0E1D16)] p-6 text-white shadow-[0_10px_30px_-10px_rgba(16,185,129,0.15)]"
         >
           <div
-            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-20"
+            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-25"
             style={{ background: 'radial-gradient(circle, #10B981 0%, transparent 70%)' }}
           />
           <div
-            className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full opacity-[0.12]"
-            style={{ background: 'radial-gradient(circle, #3B82F6 0%, transparent 70%)' }}
+            className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full opacity-15"
+            style={{ background: 'radial-gradient(circle, #059669 0%, transparent 70%)' }}
           />
           <div className="relative flex items-center justify-between">
             <span className="text-sm font-medium text-white/70">Available Balance</span>
