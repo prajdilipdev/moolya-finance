@@ -1,0 +1,216 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* =============================================================
+   Aavishkar · Premium Fintech Design Tokens
+   Deep navy + emerald accent · calm, trustworthy, refined
+   ============================================================= */
+
+:root {
+  /* Surfaces */
+  --bg: 214 43% 98%;          /* #F7F9FC */
+  --card: 0 0% 100%;          /* #FFFFFF */
+  --card-muted: 210 40% 96%;  /* #F1F5F9 */
+  --line: 214 32% 91%;        /* #E2E8F0 */
+
+  /* Text */
+  --base: 222 47% 11%;        /* #0F172A */
+  --base-muted: 215 16% 47%;  /* #64748B */
+  --muted: 215 20% 65%;       /* #94A3B8 */
+
+  /* Brand accent — emerald */
+  --accent: 160 84% 31%;      /* #059669 */
+  --accent-strong: 161 94% 25%;
+  --accent-soft: 152 60% 95%;
+  --accent-ring: 160 84% 39%;
+
+  /* Semantic */
+  --positive: 160 84% 39%;    /* #10B981 income */
+  --positive-soft: 152 60% 94%;
+  --negative: 3 62% 59%;      /* #E05252 expense */
+  --negative-soft: 6 77% 95%;
+  --warning: 39 71% 50%;      /* #D99A24 */
+  --warning-soft: 40 70% 95%;
+  --info: 217 91% 60%;        /* #3B82F6 */
+  --info-soft: 214 100% 96%;
+
+  color-scheme: light;
+}
+
+.dark {
+  /* Surfaces — deep navy */
+  --bg: 215 60% 7%;           /* #07111F */
+  --card: 210 53% 11%;        /* #0D1B2A */
+  --card-muted: 213 55% 15%;  /* #12243A */
+  --line: 213 45% 21%;        /* #1E3550 */
+
+  /* Text */
+  --base: 210 40% 98%;        /* #F8FAFC */
+  --base-muted: 215 20% 70%;
+  --muted: 215 20% 58%;
+
+  --accent: 160 84% 45%;
+  --accent-strong: 160 84% 50%;
+  --accent-soft: 158 40% 16%;
+  --accent-ring: 160 84% 50%;
+
+  --positive: 160 84% 50%;
+  --positive-soft: 160 50% 14%;
+  --negative: 3 65% 63%;
+  --negative-soft: 3 50% 17%;
+  --warning: 39 90% 60%;
+  --warning-soft: 40 45% 16%;
+  --info: 217 91% 62%;
+  --info-soft: 217 50% 18%;
+
+  color-scheme: dark;
+}
+
+* {
+  border-color: hsl(var(--line));
+}
+
+html {
+  font-feature-settings: 'cv01', 'ss01', 'tnum' 0;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+body {
+  @apply bg-[hsl(var(--bg))] text-base font-sans;
+  transition: background-color 0.25s ease, color 0.25s ease;
+}
+
+::selection {
+  background: hsl(var(--accent) / 0.18);
+}
+
+/* Financial numbers — tabular, aligned */
+.tabular {
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.01em;
+}
+.fin-num {
+  font-variant-numeric: tabular-nums lining-nums;
+  letter-spacing: -0.02em;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: none;
+}
+
+@layer components {
+  .card {
+    @apply rounded-[16px] border bg-card;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 1px 1px rgba(15, 23, 42, 0.02);
+  }
+  .card-hover {
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  }
+  .card-hover:hover {
+    border-color: hsl(var(--accent) / 0.35);
+    box-shadow: 0 4px 14px -6px rgba(15, 23, 42, 0.12);
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-[11px] px-4 py-2.5 text-sm font-semibold transition-all duration-150 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-[hsl(var(--bg))] focus-visible:ring-accent/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none select-none;
+  }
+  .btn-primary {
+    @apply btn bg-accent text-white hover:bg-accent-strong active:scale-[0.98] shadow-[0_1px_2px_rgba(16,185,129,0.25)];
+  }
+  .btn-secondary {
+    @apply btn border bg-card text-base hover:bg-base/5 active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply btn text-base-muted hover:bg-base/5 hover:text-base;
+  }
+  .btn-danger {
+    @apply btn bg-negative-soft text-negative hover:bg-negative/15 active:scale-[0.98];
+  }
+
+  .input {
+    @apply w-full rounded-[11px] border bg-card px-3.5 py-2.5 text-sm text-base placeholder:text-muted/70 transition-all duration-150;
+  }
+  .input:focus {
+    @apply outline-none;
+    border-color: hsl(var(--accent-ring) / 0.6);
+    box-shadow: 0 0 0 3px hsl(var(--accent) / 0.12);
+  }
+
+  .label {
+    @apply mb-1.5 block text-[11px] font-semibold uppercase tracking-[0.08em] text-base-muted;
+  }
+
+  .surface-muted {
+    @apply bg-[hsl(var(--card-muted))];
+  }
+}
+
+/* Chips / badges */
+.chip {
+  @apply inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold;
+}
+
+/* Scrollbar — minimal */
+::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+::-webkit-scrollbar-thumb {
+  @apply rounded-full bg-base/10 hover:bg-base/20;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Recharts refinements */
+.recharts-tooltip-cursor {
+  fill: hsl(var(--base) / 0.04);
+}
+.recharts-default-tooltip,
+.recharts-tooltip-wrapper {
+  outline: none;
+}
+.recharts-cartesian-axis-tick text {
+  fill: hsl(var(--base-muted));
+}
+
+/* Skeleton shimmer */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: hsl(var(--card-muted));
+  border-radius: 8px;
+}
+.skeleton::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, hsl(var(--card) / 0.6), transparent);
+  animation: shimmer 1.5s infinite;
+}
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+  .skeleton::after {
+    animation: none;
+  }
+}
