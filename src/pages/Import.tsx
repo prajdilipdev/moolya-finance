@@ -40,7 +40,7 @@ Or use marks & categories:
 export function Import() {
   const { db, addParsedTransactions } = useApp()
   const { toast } = useToast()
-  const [tab, setTab] = useState<'bank' | 'text'>('bank')
+  const [tab, setTab] = useState<'text' | 'bank'>('text')
   const [text, setText] = useState('')
   const [stage, setStage] = useState<'idle' | 'review' | 'done'>('idle')
   const [rows, setRows] = useState<ParsedTransaction[]>([])
@@ -217,9 +217,18 @@ export function Import() {
   }
 
   const importTabs = [
-    { value: 'bank', label: 'Bank Statement (PDF / Excel / CSV)' },
-    { value: 'text', label: 'Quick Text / Notes' },
+    { value: 'text', label: 'Quick Text / Notes / CSV' },
+    { value: 'bank', label: 'Bank Statement (PDF / Excel)' },
   ]
+
+  const handleTextFile = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      setText(String(reader.result || ''))
+      setStage('idle')
+    }
+    reader.readAsText(file)
+  }
 
   return (
     <div className="space-y-4">
@@ -301,8 +310,9 @@ export function Import() {
             className="input font-mono text-sm"
           />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <button
+                type="button"
                 onClick={() => {
                   setText(SAMPLE)
                   setStage('idle')
@@ -311,6 +321,20 @@ export function Import() {
               >
                 <Copy className="h-3.5 w-3.5" /> Use sample
               </button>
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className="btn-ghost text-xs"
+              >
+                <Upload className="h-3.5 w-3.5" /> Upload .txt / .csv
+              </button>
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".txt,.csv,text/plain,text/csv"
+                className="hidden"
+                onChange={(e) => e.target.files?.[0] && handleTextFile(e.target.files[0])}
+              />
               {looksLikeCSV(text) && <Badge tone="accent">CSV detected</Badge>}
             </div>
             <button onClick={analyzeText} className="btn-primary">
