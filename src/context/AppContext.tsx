@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
+import React, { createContext, useContext, useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import {
   DB,
   Transaction,
@@ -11,7 +11,6 @@ import {
   UserCategoryRule,
   Category,
   PaymentMethod,
-  TransactionType,
   Profile,
   ParsedTransaction,
   Source,
@@ -19,11 +18,42 @@ import {
 import { loadDB, saveDB, defaultDB, seedData, clearDB, exportJSON, importJSON, applyDueRecurring } from '@/lib/store'
 import { materializeInto } from '@/lib/parser'
 import { uid, todayISO } from '@/lib/format'
+import { useAuth } from './AuthContext'
+import { useToast } from './ToastContext'
+import {
+  fetchCloudDB,
+  seedCloudUser,
+  cloudSyncProfile,
+  cloudUpsertTransactions,
+  cloudDeleteTransactions,
+  cloudUpsertBudget,
+  cloudDeleteBudget,
+  cloudUpsertRecurring,
+  cloudDeleteRecurring,
+  cloudUpsertBill,
+  cloudDeleteBill,
+  cloudUpsertSubscription,
+  cloudDeleteSubscription,
+  cloudUpsertGoal,
+  cloudDeleteGoal,
+  cloudUpsertDebt,
+  cloudDeleteDebt,
+  cloudUpsertCategory,
+  cloudDeleteCategory,
+  cloudUpsertPaymentMethod,
+  cloudUpsertRule,
+  cloudDeleteRule,
+  cloudClearAllData,
+} from '@/lib/supabaseSync'
 
 interface AppContextValue {
   db: DB
   hasData: boolean
   seeded: boolean
+  syncing: boolean
+  lastSyncedAt: string | null
+  cloudEnabled: boolean
+  syncNow: () => Promise<void>
   // profile
   updateProfile: (p: Partial<Profile>) => void
   // transactions
@@ -68,15 +98,79 @@ interface AppContextValue {
 const AppContext = createContext<AppContextValue | null>(null)
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
+  const { user, enabled: authEnabled } = useAuth()
+  const { toast } = useToast()
+  const [syncing, setSyncing] = useState(false)
+  const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
+
   const [db, setDb] = useState<DB>(() => {
     const d = loadDB()
-    // If completely fresh (no transactions), seed with sample data
     if (d.transactions.length === 0) return applyDueRecurring(seedData(d))
-    // Catch up on any recurring items marked "auto-create" that fell due
-    // while the app was closed.
     return applyDueRecurring(d)
   })
 
+  const userId = user?.id || null
+  const dbRef = useRef(db)
+  dbRef.current = db
+
+  // Sync with Supabase on user sign-in or session load
+  useEffect(() => {
+    if (!userId || !user) return
+
+    let active = true
+    const loadCloudData = async () => {
+      setSyncing(true)
+      try {
+        const cloudData = await fetchCloudDB(userId)
+        if (!active) return
+
+        if (cloudData && (cloudData.transactions.length > 0 || cloudData.categories.length > 0)) {
+          const fresh = applyDueRecurring(cloudData)
+          setDb(fresh)
+          saveDB(fresh)
+          setLastSyncedAt(new Date().toISOString())
+        } else {
+          // New cloud user: seed with initial or local data
+          const current = dbRef.current
+          const seedTarget: DB = {
+            ...current,
+            profile: {
+              ...(current.profile || {
+                id: userId,
+                name: user.user_metadata?.name || 'You',
+                email: user.email || '',
+                currency: 'INR',
+                timezone: 'Asia/Kolkata',
+                theme: 'system',
+                onboarded: false,
+                monthlyIncome: null,
+                createdAt: new Date().toISOString(),
+              }),
+              id: userId,
+              email: user.email || current.profile?.email || '',
+            },
+          }
+          await seedCloudUser(userId, seedTarget)
+          if (!active) return
+          setDb(seedTarget)
+          saveDB(seedTarget)
+          setLastSyncedAt(new Date().toISOString())
+        }
+      } catch (err) {
+        console.error('Error syncing cloud data on mount:', err)
+      } finally {
+        if (active) setSyncing(false)
+      }
+    }
+
+    loadCloudData()
+
+    return () => {
+      active = false
+    }
+  }, [userId])
+
+  // Save to local cache on state changes
   useEffect(() => {
     saveDB(db)
   }, [db])
@@ -103,43 +197,85 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setDb((prev) => fn(prev))
   }, [])
 
-  const updateProfile = useCallback((p: Partial<Profile>) => {
-    update((d) => ({
-      ...d,
-      profile: { ...(d.profile as Profile), ...p },
-    }))
-  }, [update])
+  const syncNow = useCallback(async () => {
+    if (!userId) {
+      toast({ title: 'Local Mode', message: 'Sign in to sync with Supabase Cloud', tone: 'info' })
+      return
+    }
+    setSyncing(true)
+    try {
+      const cloudData = await fetchCloudDB(userId)
+      if (cloudData) {
+        const merged = applyDueRecurring(cloudData)
+        setDb(merged)
+        saveDB(merged)
+        setLastSyncedAt(new Date().toISOString())
+        toast({ title: 'Synced', message: 'Your data is up to date with the cloud', tone: 'success' })
+      }
+    } catch (err) {
+      toast({ title: 'Sync Error', message: 'Could not sync with Supabase', tone: 'error' })
+    } finally {
+      setSyncing(false)
+    }
+  }, [userId, toast])
+
+  const updateProfile = useCallback(
+    (p: Partial<Profile>) => {
+      let updatedProfile: Profile | null = null
+      update((d) => {
+        const base = d.profile || {
+          id: userId || uid('u_'),
+          name: 'You',
+          email: '',
+          currency: 'INR',
+          timezone: 'Asia/Kolkata',
+          theme: 'system',
+          onboarded: false,
+          monthlyIncome: null,
+          createdAt: new Date().toISOString(),
+        }
+        updatedProfile = { ...base, ...p }
+        return {
+          ...d,
+          profile: updatedProfile,
+        }
+      })
+      if (updatedProfile && userId) {
+        cloudSyncProfile(updatedProfile).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
 
   const addTransactions: AppContextValue['addTransactions'] = useCallback(
     (txs) => {
       const ids: string[] = []
-      update((d) => {
-        const now = new Date().toISOString()
-        const items = txs.map((t) => {
-          const id = uid('tx_')
-          ids.push(id)
-          return { ...t, id, createdAt: now, updatedAt: now }
-        })
-        return { ...d, transactions: [...items, ...d.transactions] }
+      const now = new Date().toISOString()
+      const items: Transaction[] = txs.map((t) => {
+        const id = uid('tx_')
+        ids.push(id)
+        return { ...t, id, createdAt: now, updatedAt: now }
       })
+
+      update((d) => ({ ...d, transactions: [...items, ...d.transactions] }))
+
+      if (userId && items.length > 0) {
+        cloudUpsertTransactions(items, userId).catch(console.error)
+      }
       return ids
     },
-    [update]
+    [update, userId]
   )
 
-  /**
-   * Insert transactions coming from the parser (Quick Add / Import).
-   *
-   * Category resolution happens inside the state update so that categories
-   * invented along the way are persisted together with the transactions that
-   * reference them, and a batch that mentions the same new category twice
-   * creates it only once.
-   */
   const addParsedTransactions: AppContextValue['addParsedTransactions'] = useCallback(
     (parsed, source) => {
+      const now = new Date().toISOString()
+      let createdTransactions: Transaction[] = []
+      let newCategories: Category[] = []
+
       update((d) => {
-        const now = new Date().toISOString()
         let categories = d.categories
+        const prevCatCount = categories.length
         const items: Transaction[] = parsed.map((p) => {
           const res = materializeInto(p, categories)
           categories = res.categories
@@ -162,138 +298,501 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             updatedAt: now,
           }
         })
+        createdTransactions = items
+        if (categories.length > prevCatCount) {
+          newCategories = categories.slice(prevCatCount)
+        }
         return { ...d, categories, transactions: [...items, ...d.transactions] }
       })
+
+      if (userId) {
+        if (newCategories.length > 0) {
+          Promise.all(newCategories.map((c) => cloudUpsertCategory(c, userId))).catch(console.error)
+        }
+        if (createdTransactions.length > 0) {
+          cloudUpsertTransactions(createdTransactions, userId).catch(console.error)
+        }
+      }
     },
-    [update]
+    [update, userId]
   )
 
   const updateTransaction = useCallback(
     (id: string, patch: Partial<Transaction>) => {
+      let updated: Transaction | null = null
       update((d) => ({
         ...d,
-        transactions: d.transactions.map((t) => (t.id === id ? { ...t, ...patch, updatedAt: new Date().toISOString() } : t)),
+        transactions: d.transactions.map((t) => {
+          if (t.id === id) {
+            updated = { ...t, ...patch, updatedAt: new Date().toISOString() }
+            return updated
+          }
+          return t
+        }),
       }))
+      if (userId && updated) {
+        cloudUpsertTransactions([updated], userId).catch(console.error)
+      }
     },
-    [update]
+    [update, userId]
   )
 
   const deleteTransactions = useCallback(
     (ids: string[]) => {
       const set = new Set(ids)
       update((d) => ({ ...d, transactions: d.transactions.filter((t) => !set.has(t.id)) }))
+      if (userId && ids.length > 0) {
+        cloudDeleteTransactions(ids).catch(console.error)
+      }
     },
-    [update]
+    [update, userId]
   )
 
   const upsertBudget = useCallback(
     (b: Partial<Budget> & { id?: string }) => {
+      let savedBudget: Budget | null = null
       update((d) => {
         if (b.id) {
-          return { ...d, budgets: d.budgets.map((x) => (x.id === b.id ? { ...x, ...b } as Budget : x)) }
+          const budgets = d.budgets.map((x) => {
+            if (x.id === b.id) {
+              savedBudget = { ...x, ...b } as Budget
+              return savedBudget
+            }
+            return x
+          })
+          return { ...d, budgets }
         }
-        const nb: Budget = { id: uid('b_'), name: 'Budget', type: 'overall', categoryId: null, amount: 0, period: 'monthly', startDate: null, endDate: null, rollover: false, createdAt: new Date().toISOString(), ...b }
+        const nb: Budget = {
+          id: uid('b_'),
+          name: 'Budget',
+          type: 'overall',
+          categoryId: null,
+          amount: 0,
+          period: 'monthly',
+          startDate: null,
+          endDate: null,
+          rollover: false,
+          createdAt: new Date().toISOString(),
+          ...b,
+        }
+        savedBudget = nb
         return { ...d, budgets: [...d.budgets, nb] }
       })
+      if (userId && savedBudget) {
+        cloudUpsertBudget(savedBudget, userId).catch(console.error)
+      }
     },
-    [update]
+    [update, userId]
   )
-  const deleteBudget = useCallback((id: string) => update((d) => ({ ...d, budgets: d.budgets.filter((x) => x.id !== id) })), [update])
+
+  const deleteBudget = useCallback(
+    (id: string) => {
+      update((d) => ({ ...d, budgets: d.budgets.filter((x) => x.id !== id) }))
+      if (userId) {
+        cloudDeleteBudget(id).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
 
   const upsertRecurring = useCallback(
     (r: Partial<Recurring> & { id?: string }) => {
+      let savedRecurring: Recurring | null = null
       update((d) => {
-        if (r.id) return { ...d, recurring: d.recurring.map((x) => (x.id === r.id ? { ...x, ...r } as Recurring : x)) }
-        const nr: Recurring = { id: uid('r_'), name: 'Recurring', type: 'expense', amount: 0, categoryId: d.categories[0]?.id || '', subcategoryId: null, frequency: 'monthly', startDate: todayISO(), nextDueDate: null, endDate: null, paymentMethodId: null, autoCreate: false, reminder: true, notes: null, active: true, createdAt: new Date().toISOString(), ...r }
+        if (r.id) {
+          const recurring = d.recurring.map((x) => {
+            if (x.id === r.id) {
+              savedRecurring = { ...x, ...r } as Recurring
+              return savedRecurring
+            }
+            return x
+          })
+          return { ...d, recurring }
+        }
+        const nr: Recurring = {
+          id: uid('r_'),
+          name: 'Recurring',
+          type: 'expense',
+          amount: 0,
+          categoryId: d.categories[0]?.id || '',
+          subcategoryId: null,
+          frequency: 'monthly',
+          startDate: todayISO(),
+          nextDueDate: null,
+          endDate: null,
+          paymentMethodId: null,
+          autoCreate: false,
+          reminder: true,
+          notes: null,
+          active: true,
+          createdAt: new Date().toISOString(),
+          ...r,
+        }
+        savedRecurring = nr
         return { ...d, recurring: [...d.recurring, nr] }
       })
+      if (userId && savedRecurring) {
+        cloudUpsertRecurring(savedRecurring, userId).catch(console.error)
+      }
     },
-    [update]
+    [update, userId]
   )
-  const deleteRecurring = useCallback((id: string) => update((d) => ({ ...d, recurring: d.recurring.filter((x) => x.id !== id) })), [update])
+
+  const deleteRecurring = useCallback(
+    (id: string) => {
+      update((d) => ({ ...d, recurring: d.recurring.filter((x) => x.id !== id) }))
+      if (userId) {
+        cloudDeleteRecurring(id).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
 
   const upsertBill = useCallback(
     (b: Partial<Bill> & { id?: string }) => {
+      let savedBill: Bill | null = null
       update((d) => {
-        if (b.id) return { ...d, bills: d.bills.map((x) => (x.id === b.id ? { ...x, ...b } as Bill : x)) }
-        const nb: Bill = { id: uid('bill_'), name: 'Bill', amount: 0, dueDate: todayISO(), recurrence: 'monthly', categoryId: d.categories[0]?.id || '', paymentMethodId: null, paid: false, reminder: true, notes: null, createdAt: new Date().toISOString(), ...b }
+        if (b.id) {
+          const bills = d.bills.map((x) => {
+            if (x.id === b.id) {
+              savedBill = { ...x, ...b } as Bill
+              return savedBill
+            }
+            return x
+          })
+          return { ...d, bills }
+        }
+        const nb: Bill = {
+          id: uid('bill_'),
+          name: 'Bill',
+          amount: 0,
+          dueDate: todayISO(),
+          recurrence: 'monthly',
+          categoryId: d.categories[0]?.id || '',
+          paymentMethodId: null,
+          paid: false,
+          reminder: true,
+          notes: null,
+          createdAt: new Date().toISOString(),
+          ...b,
+        }
+        savedBill = nb
         return { ...d, bills: [...d.bills, nb] }
       })
+      if (userId && savedBill) {
+        cloudUpsertBill(savedBill, userId).catch(console.error)
+      }
     },
-    [update]
+    [update, userId]
   )
-  const deleteBill = useCallback((id: string) => update((d) => ({ ...d, bills: d.bills.filter((x) => x.id !== id) })), [update])
-  const toggleBillPaid = useCallback((id: string) => update((d) => ({ ...d, bills: d.bills.map((x) => (x.id === id ? { ...x, paid: !x.paid } : x)) })), [update])
+
+  const deleteBill = useCallback(
+    (id: string) => {
+      update((d) => ({ ...d, bills: d.bills.filter((x) => x.id !== id) }))
+      if (userId) {
+        cloudDeleteBill(id).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
+
+  const toggleBillPaid = useCallback(
+    (id: string) => {
+      let updatedBill: Bill | null = null
+      update((d) => ({
+        ...d,
+        bills: d.bills.map((x) => {
+          if (x.id === id) {
+            updatedBill = { ...x, paid: !x.paid }
+            return updatedBill
+          }
+          return x
+        }),
+      }))
+      if (userId && updatedBill) {
+        cloudUpsertBill(updatedBill, userId).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
 
   const upsertSubscription = useCallback(
     (s: Partial<Subscription> & { id?: string }) => {
+      let savedSub: Subscription | null = null
       update((d) => {
-        if (s.id) return { ...d, subscriptions: d.subscriptions.map((x) => (x.id === s.id ? { ...x, ...s } as Subscription : x)) }
-        const ns: Subscription = { id: uid('sub_'), name: 'Subscription', amount: 0, frequency: 'monthly', categoryId: d.categories.find((c) => c.name === 'Subscriptions')?.id || '', paymentMethodId: null, active: true, nextBilling: null, notes: null, createdAt: new Date().toISOString(), ...s }
+        if (s.id) {
+          const subscriptions = d.subscriptions.map((x) => {
+            if (x.id === s.id) {
+              savedSub = { ...x, ...s } as Subscription
+              return savedSub
+            }
+            return x
+          })
+          return { ...d, subscriptions }
+        }
+        const ns: Subscription = {
+          id: uid('sub_'),
+          name: 'Subscription',
+          amount: 0,
+          frequency: 'monthly',
+          categoryId: d.categories.find((c) => c.name === 'Subscriptions')?.id || '',
+          paymentMethodId: null,
+          active: true,
+          nextBilling: null,
+          notes: null,
+          createdAt: new Date().toISOString(),
+          ...s,
+        }
+        savedSub = ns
         return { ...d, subscriptions: [...d.subscriptions, ns] }
       })
+      if (userId && savedSub) {
+        cloudUpsertSubscription(savedSub, userId).catch(console.error)
+      }
     },
-    [update]
+    [update, userId]
   )
-  const deleteSubscription = useCallback((id: string) => update((d) => ({ ...d, subscriptions: d.subscriptions.filter((x) => x.id !== id) })), [update])
+
+  const deleteSubscription = useCallback(
+    (id: string) => {
+      update((d) => ({ ...d, subscriptions: d.subscriptions.filter((x) => x.id !== id) }))
+      if (userId) {
+        cloudDeleteSubscription(id).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
 
   const upsertGoal = useCallback(
     (g: Partial<Goal> & { id?: string }) => {
+      let savedGoal: Goal | null = null
       update((d) => {
-        if (g.id) return { ...d, goals: d.goals.map((x) => (x.id === g.id ? { ...x, ...g } as Goal : x)) }
-        const ng: Goal = { id: uid('g_'), name: 'Goal', targetAmount: 0, currentAmount: 0, targetDate: null, monthlyContribution: null, icon: 'PiggyBank', createdAt: new Date().toISOString(), ...g }
+        if (g.id) {
+          const goals = d.goals.map((x) => {
+            if (x.id === g.id) {
+              savedGoal = { ...x, ...g } as Goal
+              return savedGoal
+            }
+            return x
+          })
+          return { ...d, goals }
+        }
+        const ng: Goal = {
+          id: uid('g_'),
+          name: 'Goal',
+          targetAmount: 0,
+          currentAmount: 0,
+          targetDate: null,
+          monthlyContribution: null,
+          icon: 'PiggyBank',
+          createdAt: new Date().toISOString(),
+          ...g,
+        }
+        savedGoal = ng
         return { ...d, goals: [...d.goals, ng] }
       })
+      if (userId && savedGoal) {
+        cloudUpsertGoal(savedGoal, userId).catch(console.error)
+      }
     },
-    [update]
+    [update, userId]
   )
-  const deleteGoal = useCallback((id: string) => update((d) => ({ ...d, goals: d.goals.filter((x) => x.id !== id) })), [update])
-  const contributeGoal = useCallback((id: string, amount: number) => update((d) => ({ ...d, goals: d.goals.map((x) => (x.id === id ? { ...x, currentAmount: x.currentAmount + amount } : x)) })), [update])
+
+  const deleteGoal = useCallback(
+    (id: string) => {
+      update((d) => ({ ...d, goals: d.goals.filter((x) => x.id !== id) }))
+      if (userId) {
+        cloudDeleteGoal(id).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
+
+  const contributeGoal = useCallback(
+    (id: string, amount: number) => {
+      let updatedGoal: Goal | null = null
+      update((d) => ({
+        ...d,
+        goals: d.goals.map((x) => {
+          if (x.id === id) {
+            updatedGoal = { ...x, currentAmount: x.currentAmount + amount }
+            return updatedGoal
+          }
+          return x
+        }),
+      }))
+      if (userId && updatedGoal) {
+        cloudUpsertGoal(updatedGoal, userId).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
 
   const upsertDebt = useCallback(
     (dt: Partial<Debt> & { id?: string }) => {
+      let savedDebt: Debt | null = null
       update((d) => {
-        if (dt.id) return { ...d, debts: d.debts.map((x) => (x.id === dt.id ? { ...x, ...dt } as Debt : x)) }
-        const nd: Debt = { id: uid('d_'), name: 'Debt', originalBalance: 0, currentBalance: 0, interestRate: null, minPayment: null, dueDate: null, frequency: 'monthly', paymentAmount: 0, categoryId: null, createdAt: new Date().toISOString(), ...dt }
+        if (dt.id) {
+          const debts = d.debts.map((x) => {
+            if (x.id === dt.id) {
+              savedDebt = { ...x, ...dt } as Debt
+              return savedDebt
+            }
+            return x
+          })
+          return { ...d, debts }
+        }
+        const nd: Debt = {
+          id: uid('d_'),
+          name: 'Debt',
+          originalBalance: 0,
+          currentBalance: 0,
+          interestRate: null,
+          minPayment: null,
+          dueDate: null,
+          frequency: 'monthly',
+          paymentAmount: 0,
+          categoryId: null,
+          createdAt: new Date().toISOString(),
+          ...dt,
+        }
+        savedDebt = nd
         return { ...d, debts: [...d.debts, nd] }
       })
+      if (userId && savedDebt) {
+        cloudUpsertDebt(savedDebt, userId).catch(console.error)
+      }
     },
-    [update]
+    [update, userId]
   )
-  const deleteDebt = useCallback((id: string) => update((d) => ({ ...d, debts: d.debts.filter((x) => x.id !== id) })), [update])
+
+  const deleteDebt = useCallback(
+    (id: string) => {
+      update((d) => ({ ...d, debts: d.debts.filter((x) => x.id !== id) }))
+      if (userId) {
+        cloudDeleteDebt(id).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
 
   const upsertCategory = useCallback(
     (c: Partial<Category> & { id?: string }) => {
+      let savedCategory: Category | null = null
       update((d) => {
-        if (c.id) return { ...d, categories: d.categories.map((x) => (x.id === c.id ? { ...x, ...c } as Category : x)) }
+        if (c.id) {
+          const categories = d.categories.map((x) => {
+            if (x.id === c.id) {
+              savedCategory = { ...x, ...c } as Category
+              return savedCategory
+            }
+            return x
+          })
+          return { ...d, categories }
+        }
         const nc: Category = { id: uid('cat_'), name: 'Category', type: 'expense', parentId: null, icon: 'Tag', system: false, ...c }
+        savedCategory = nc
         return { ...d, categories: [...d.categories, nc] }
       })
+      if (userId && savedCategory) {
+        cloudUpsertCategory(savedCategory, userId).catch(console.error)
+      }
     },
-    [update]
+    [update, userId]
   )
-  const deleteCategory = useCallback((id: string) => update((d) => ({ ...d, categories: d.categories.filter((x) => x.id !== id) })), [update])
+
+  const deleteCategory = useCallback(
+    (id: string) => {
+      update((d) => ({ ...d, categories: d.categories.filter((x) => x.id !== id) }))
+      if (userId) {
+        cloudDeleteCategory(id).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
 
   const upsertPaymentMethod = useCallback(
     (p: Partial<PaymentMethod> & { id?: string }) => {
+      let savedPm: PaymentMethod | null = null
       update((d) => {
-        if (p.id) return { ...d, paymentMethods: d.paymentMethods.map((x) => (x.id === p.id ? { ...x, ...p } as PaymentMethod : x)) }
+        if (p.id) {
+          const paymentMethods = d.paymentMethods.map((x) => {
+            if (x.id === p.id) {
+              savedPm = { ...x, ...p } as PaymentMethod
+              return savedPm
+            }
+            return x
+          })
+          return { ...d, paymentMethods }
+        }
         const np: PaymentMethod = { id: uid('pm_'), name: 'Method', icon: 'CircleDashed', system: false, ...p }
+        savedPm = np
         return { ...d, paymentMethods: [...d.paymentMethods, np] }
       })
+      if (userId && savedPm) {
+        cloudUpsertPaymentMethod(savedPm, userId).catch(console.error)
+      }
     },
-    [update]
+    [update, userId]
   )
 
-  const addRule = useCallback((rule: Omit<UserCategoryRule, 'id'>) => update((d) => ({ ...d, userCategoryRules: [...d.userCategoryRules, { ...rule, id: uid('rule_') }] })), [update])
-  const deleteRule = useCallback((id: string) => update((d) => ({ ...d, userCategoryRules: d.userCategoryRules.filter((x) => x.id !== id) })), [update])
+  const addRule = useCallback(
+    (rule: Omit<UserCategoryRule, 'id'>) => {
+      const nr: UserCategoryRule = { ...rule, id: uid('rule_') }
+      update((d) => ({ ...d, userCategoryRules: [...d.userCategoryRules, nr] }))
+      if (userId) {
+        cloudUpsertRule(nr, userId).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
 
-  const seed = useCallback(() => update((d) => seedData({ ...defaultDB(), profile: d.profile })), [update])
-  const resetAll = useCallback(() => update(() => seedData(defaultDB())), [update])
-  const replaceDB = useCallback((ndb: DB) => setDb(ndb), [])
+  const deleteRule = useCallback(
+    (id: string) => {
+      update((d) => ({ ...d, userCategoryRules: d.userCategoryRules.filter((x) => x.id !== id) }))
+      if (userId) {
+        cloudDeleteRule(id).catch(console.error)
+      }
+    },
+    [update, userId]
+  )
+
+  const seed = useCallback(() => {
+    const seeded = seedData({ ...defaultDB(), profile: db.profile })
+    update(() => seeded)
+    if (userId) {
+      seedCloudUser(userId, seeded).catch(console.error)
+    }
+  }, [update, db.profile, userId])
+
+  const resetAll = useCallback(() => {
+    const seeded = seedData(defaultDB())
+    update(() => seeded)
+    if (userId) {
+      cloudClearAllData(userId)
+        .then(() => seedCloudUser(userId, seeded))
+        .catch(console.error)
+    }
+  }, [update, userId])
+
+  const replaceDB = useCallback(
+    (ndb: DB) => {
+      setDb(ndb)
+      if (userId) {
+        seedCloudUser(userId, ndb).catch(console.error)
+      }
+    },
+    [userId]
+  )
+
   const backupJSON = useCallback(() => exportJSON(db), [db])
 
-  const setTheme = useCallback((t: 'light' | 'dark' | 'system') => update((d) => ({ ...d, profile: { ...(d.profile as Profile), theme: t } })), [update])
+  const setTheme = useCallback(
+    (t: 'light' | 'dark' | 'system') => {
+      updateProfile({ theme: t })
+    },
+    [updateProfile]
+  )
 
   const hasData = db.transactions.length > 0
   const seeded = true
@@ -303,6 +802,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       db,
       hasData,
       seeded,
+      syncing,
+      lastSyncedAt,
+      cloudEnabled: Boolean(authEnabled && user),
+      syncNow,
       updateProfile,
       addTransactions,
       addParsedTransactions,
@@ -333,7 +836,45 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       backupJSON,
       setTheme,
     }),
-    [db, hasData, seeded, updateProfile, addTransactions, addParsedTransactions, updateTransaction, deleteTransactions, upsertBudget, deleteBudget, upsertRecurring, deleteRecurring, upsertBill, deleteBill, toggleBillPaid, upsertSubscription, deleteSubscription, upsertGoal, deleteGoal, contributeGoal, upsertDebt, deleteDebt, upsertCategory, deleteCategory, upsertPaymentMethod, addRule, deleteRule, seed, resetAll, replaceDB, backupJSON, setTheme]
+    [
+      db,
+      hasData,
+      seeded,
+      syncing,
+      lastSyncedAt,
+      authEnabled,
+      user,
+      syncNow,
+      updateProfile,
+      addTransactions,
+      addParsedTransactions,
+      updateTransaction,
+      deleteTransactions,
+      upsertBudget,
+      deleteBudget,
+      upsertRecurring,
+      deleteRecurring,
+      upsertBill,
+      deleteBill,
+      toggleBillPaid,
+      upsertSubscription,
+      deleteSubscription,
+      upsertGoal,
+      deleteGoal,
+      contributeGoal,
+      upsertDebt,
+      deleteDebt,
+      upsertCategory,
+      deleteCategory,
+      upsertPaymentMethod,
+      addRule,
+      deleteRule,
+      seed,
+      resetAll,
+      replaceDB,
+      backupJSON,
+      setTheme,
+    ]
   )
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>

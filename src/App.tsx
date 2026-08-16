@@ -23,9 +23,9 @@ import { Settings } from '@/pages/Settings'
 export default function App() {
   return (
     <AuthProvider>
-      <AuthGate>
-        <AppProvider>
-          <ToastProvider>
+      <ToastProvider>
+        <AuthGate>
+          <AppProvider>
             <PeriodProvider>
               <BrowserRouter>
                 <Routes>
@@ -48,9 +48,9 @@ export default function App() {
                 </Routes>
               </BrowserRouter>
             </PeriodProvider>
-          </ToastProvider>
-        </AppProvider>
-      </AuthGate>
+          </AppProvider>
+        </AuthGate>
+      </ToastProvider>
     </AuthProvider>
   )
 }

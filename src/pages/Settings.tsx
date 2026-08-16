@@ -1,15 +1,31 @@
 import React, { useRef, useState } from 'react'
-import { Download, Upload, Trash2, Plus, RefreshCw, Sun, Moon, Monitor, Save, Check, ShieldCheck, LogOut } from 'lucide-react'
+import { Download, Upload, Trash2, Plus, RefreshCw, Sun, Moon, Monitor, Save, Check, ShieldCheck, LogOut, Cloud, CloudOff, Loader2 } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { useAuth } from '@/context/AuthContext'
 import { importJSON } from '@/lib/store'
-import { downloadFile } from '@/lib/format'
+import { downloadFile, formatDate } from '@/lib/format'
 import { Segmented, Field } from '@/components/ui/Misc'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils'
 
 export function Settings() {
-  const { db, updateProfile, setTheme, upsertCategory, deleteCategory, upsertPaymentMethod, addRule, deleteRule, resetAll, backupJSON, replaceDB } = useApp()
+  const {
+    db,
+    syncing,
+    lastSyncedAt,
+    cloudEnabled,
+    syncNow,
+    updateProfile,
+    setTheme,
+    upsertCategory,
+    deleteCategory,
+    upsertPaymentMethod,
+    addRule,
+    deleteRule,
+    resetAll,
+    backupJSON,
+    replaceDB,
+  } = useApp()
   const auth = useAuth()
   const [tab, setTab] = useState('account')
   const fileRef = useRef<HTMLInputElement>(null)
@@ -58,32 +74,79 @@ export function Settings() {
       {tab === 'account' && (
         <div className="max-w-lg space-y-4">
           <div className="card p-5">
-            <h3 className="mb-3 text-sm font-bold">Account</h3>
+            <h3 className="mb-3 text-sm font-bold">Profile Details</h3>
             <div className="space-y-3">
               <Field label="Name"><input defaultValue={p?.name} onChange={(e) => updateProfile({ name: e.target.value })} className="input" /></Field>
               <Field label="Email"><input defaultValue={p?.email} onChange={(e) => updateProfile({ email: e.target.value })} className="input" /></Field>
               <button onClick={flash} className="btn-primary"><Save className="h-4 w-4" /> Save changes {saved && <Check className="h-4 w-4" />}</button>
             </div>
           </div>
+
+          <div className="card p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-bold">Supabase Cloud Sync</h3>
+                <p className="text-xs text-base-muted mt-0.5">
+                  {cloudEnabled
+                    ? 'All transactions, budgets, and settings sync with your Supabase database.'
+                    : 'App is running in offline mode. Configure Supabase in .env to enable cloud sync.'}
+                </p>
+              </div>
+              <div className="shrink-0">
+                {cloudEnabled ? (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-semibold text-emerald-500">
+                    <Cloud className="h-3.5 w-3.5" /> Cloud Active
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-base/10 px-2.5 py-1 text-xs font-semibold text-base-muted">
+                    <CloudOff className="h-3.5 w-3.5" /> Local Only
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {cloudEnabled && (
+              <div className="mt-4 flex items-center justify-between border-t pt-3">
+                <div className="text-xs text-base-muted">
+                  {syncing
+                    ? 'Syncing with Supabase...'
+                    : lastSyncedAt
+                    ? `Last synced: ${new Date(lastSyncedAt).toLocaleTimeString()}`
+                    : 'Ready to sync'}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => syncNow()}
+                  disabled={syncing}
+                  className="btn-secondary text-xs"
+                >
+                  {syncing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                  Sync Now
+                </button>
+              </div>
+            )}
+          </div>
+
           {auth.enabled && auth.user && (
             <div className="card p-5">
-              <h3 className="mb-3 text-sm font-bold">Sign-in</h3>
+              <h3 className="mb-3 text-sm font-bold">Sign-in Account</h3>
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{auth.user.email}</div>
-                  <div className="text-xs text-base-muted">Signed in with Supabase</div>
+                  <div className="text-xs text-base-muted">Authenticated with Supabase</div>
                 </div>
                 <button onClick={() => auth.signOut()} className="btn-secondary text-xs"><LogOut className="h-4 w-4" /> Sign out</button>
               </div>
             </div>
           )}
+
           <div className="card flex items-center justify-between p-5">
             <div>
-              <div className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-4 w-4 text-positive" /> Private by default</div>
+              <div className="flex items-center gap-2 font-semibold"><ShieldCheck className="h-4 w-4 text-positive" /> Private & Secure</div>
               <p className="text-sm text-base-muted">
-                {auth.enabled
-                  ? 'Your account controls who can open the app. Your financial records themselves are stored locally on this device.'
-                  : 'Your financial data is stored locally on this device (and optionally in your own Supabase account).'}
+                {cloudEnabled
+                  ? 'Your data is secured by PostgreSQL Row Level Security (RLS). Only your authenticated account has access to your records.'
+                  : 'Your financial data is stored locally on this device in localStorage.'}
               </p>
             </div>
           </div>
