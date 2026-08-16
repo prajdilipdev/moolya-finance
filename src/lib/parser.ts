@@ -180,12 +180,18 @@ export function detectDate(text: string): { text: string; date: string | null } 
     t = t.replace(iso[0], ' ').trim()
     return { text: t, date: d }
   }
-  // dd/mm/yyyy or dd-mm-yyyy
-  const dmy = t.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b/)
+  // dd/mm/yyyy or dd/mm/yy or dd-mm-yyyy or dd-mm-yy
+  const dmy = t.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})\b/)
   if (dmy) {
-    const d = toISODate(new Date(+dmy[3], +dmy[2] - 1, +dmy[1]))
-    t = t.replace(dmy[0], ' ').trim()
-    return { text: t, date: d }
+    let year = +dmy[3]
+    if (year < 100) year += 2000
+    const month = +dmy[2]
+    const day = +dmy[1]
+    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      const d = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+      t = t.replace(dmy[0], ' ').trim()
+      return { text: t, date: d }
+    }
   }
   // ordinal day within current month: "5th", "15th"
   const ord = t.match(/\b(\d{1,2})(st|nd|rd|th)\b/)

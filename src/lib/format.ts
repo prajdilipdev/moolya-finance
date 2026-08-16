@@ -113,19 +113,20 @@ export function advanceByFrequency(iso: string, frequency: Frequency): string {
 
 export function formatDate(iso: string): string {
   if (!iso) return '—'
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+  const parts = iso.split('-')
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0]}`
+  }
+  return iso
 }
 
 export function formatDateShort(iso: string): string {
   if (!iso) return '—'
-  return new Date(iso + 'T00:00:00').toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-  })
+  const parts = iso.split('-')
+  if (parts.length === 3) {
+    return `${parts[2]}/${parts[1]}/${parts[0].slice(-2)}`
+  }
+  return iso
 }
 
 export function greeting(): string {
