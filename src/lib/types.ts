@@ -10,6 +10,7 @@ export interface Profile {
   theme: 'light' | 'dark' | 'system'
   onboarded: boolean
   monthlyIncome?: number | null
+  initialBalance?: number | null
   createdAt: string
 }
 

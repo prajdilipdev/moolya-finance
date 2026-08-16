@@ -16,9 +16,10 @@ import { money, greeting, todayISO, formatDate, monthKey } from '@/lib/format'
 export function Dashboard() {
   const { db } = useApp()
   const { range } = usePeriod()
+  const initialBalance = db.profile?.initialBalance || 0
   const txs = useMemo(() => filterByRange(db.transactions, range), [db.transactions, range])
-  const totals = useMemo(() => computeTotals(txs), [txs])
-  const allTotals = useMemo(() => computeTotals(db.transactions), [db.transactions])
+  const totals = useMemo(() => computeTotals(txs, initialBalance), [txs, initialBalance])
+  const allTotals = useMemo(() => computeTotals(db.transactions, initialBalance), [db.transactions, initialBalance])
   const budget = useMemo(() => overallBudgetFor(db), [db])
   const insights = useMemo(() => computeInsights(db, range), [db, range])
   const forecast = useMemo(() => buildForecast(db), [db])

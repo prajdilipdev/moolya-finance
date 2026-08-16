@@ -78,6 +78,16 @@ export function Settings() {
             <div className="space-y-3">
               <Field label="Name"><input defaultValue={p?.name} onChange={(e) => updateProfile({ name: e.target.value })} className="input" /></Field>
               <Field label="Email"><input defaultValue={p?.email} onChange={(e) => updateProfile({ email: e.target.value })} className="input" /></Field>
+              <Field label="Initial / Starting Balance (₹)">
+                <input
+                  type="number"
+                  step="0.01"
+                  defaultValue={p?.initialBalance || 0}
+                  onChange={(e) => updateProfile({ initialBalance: parseFloat(e.target.value) || 0 })}
+                  className="input tabular"
+                  placeholder="e.g. 372.08"
+                />
+              </Field>
               <button onClick={flash} className="btn-primary"><Save className="h-4 w-4" /> Save changes {saved && <Check className="h-4 w-4" />}</button>
             </div>
           </div>

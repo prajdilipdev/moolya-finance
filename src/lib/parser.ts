@@ -443,7 +443,12 @@ export function looksLikeTable(raw: string): boolean {
 export function parseMarkdownOrTsvTable(
   raw: string,
   db: DB
-): { parsed: ParsedTransaction[]; errors: { line: string; reason: string }[] } {
+): {
+  parsed: ParsedTransaction[]
+  errors: { line: string; reason: string }[]
+  openingBalance?: number
+  closingBalance?: number
+} {
   const lines = raw.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
   const parsed: ParsedTransaction[] = []
   const errors: { line: string; reason: string }[] = []
@@ -483,7 +488,11 @@ export function parseMarkdownOrTsvTable(
     amount: col('amount', 'amount₹', 'amt'),
     debit: col('withdrawal', 'withdrawalamt', 'debit', 'dr'),
     credit: col('deposit', 'depositamt', 'credit', 'cr'),
+    closing: col('closingbalance', 'closingbal', 'balance', 'closingbalance₹'),
   }
+
+  let openingBalance: number | null = null
+  let closingBalance: number | null = null
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i]
@@ -531,6 +540,20 @@ export function parseMarkdownOrTsvTable(
     if (isNaN(amount) || amount <= 0) {
       errors.push({ line, reason: 'Invalid amount.' })
       continue
+    }
+
+    // Track opening & closing balance from statement
+    if (idx.closing !== -1) {
+      const rowClosing = parseFloat((cells[idx.closing] || '').replace(/[^\d.-]/g, ''))
+      if (!isNaN(rowClosing)) {
+        if (openingBalance === null) {
+          openingBalance =
+            type === 'expense'
+              ? Math.round((rowClosing + amount) * 100) / 100
+              : Math.round((rowClosing - amount) * 100) / 100
+        }
+        closingBalance = rowClosing
+      }
     }
 
     // 4. Category from table or auto-categorize
@@ -587,7 +610,7 @@ export function parseMarkdownOrTsvTable(
     })
   }
 
-  return { parsed, errors }
+  return { parsed, errors, openingBalance: openingBalance ?? undefined, closingBalance: closingBalance ?? undefined }
 }
 
 export function parseCSV(raw: string): { parsed: ParsedTransaction[]; errors: { line: string; reason: string }[] } {
@@ -652,7 +675,12 @@ export function parseBlock(
   raw: string,
   db: DB,
   contextDate?: string
-): { parsed: ParsedTransaction[]; errors: { line: string; reason: string }[] } {
+): {
+  parsed: ParsedTransaction[]
+  errors: { line: string; reason: string }[]
+  openingBalance?: number
+  closingBalance?: number
+} {
   if (looksLikeTable(raw)) return parseMarkdownOrTsvTable(raw, db)
   if (looksLikeCSV(raw)) return parseCSV(raw)
   const lines = splitInput(raw)

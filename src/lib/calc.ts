@@ -10,7 +10,7 @@ export interface Totals {
   expenseRatio: number
 }
 
-export function computeTotals(txs: Transaction[]): Totals {
+export function computeTotals(txs: Transaction[], initialBalance = 0): Totals {
   let income = 0
   let expenses = 0
   for (const t of txs) {
@@ -20,7 +20,14 @@ export function computeTotals(txs: Transaction[]): Totals {
   const savings = income - expenses
   const savingsRate = income > 0 ? pct(Math.max(savings, 0), income) : 0
   const expenseRatio = income > 0 ? pct(expenses, income) : 0
-  return { income, expenses, balance: income - expenses, savings, savingsRate, expenseRatio }
+  return {
+    income,
+    expenses,
+    balance: Math.round((initialBalance + income - expenses) * 100) / 100,
+    savings,
+    savingsRate,
+    expenseRatio,
+  }
 }
 
 // ---- Date ranges for periods ----

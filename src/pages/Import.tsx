@@ -38,13 +38,15 @@ Or use marks & categories:
 + 2k cashback #Income/Cashback`
 
 export function Import() {
-  const { db, addParsedTransactions } = useApp()
+  const { db, addParsedTransactions, updateProfile } = useApp()
   const { toast } = useToast()
   const [tab, setTab] = useState<'text' | 'bank'>('text')
   const [text, setText] = useState('')
   const [stage, setStage] = useState<'idle' | 'review' | 'done'>('idle')
   const [rows, setRows] = useState<ParsedTransaction[]>([])
   const [errors, setErrors] = useState<{ line: string; reason: string }[]>([])
+  const [openingBalance, setOpeningBalance] = useState<number | null>(null)
+  const [closingBalance, setClosingBalance] = useState<number | null>(null)
   const [skipDups, setSkipDups] = useState(true)
   const [importedCount, setImportedCount] = useState(0)
   const [skippedDups, setSkippedDups] = useState(0)
@@ -81,13 +83,15 @@ export function Import() {
   }, [rows])
 
   const analyzeText = () => {
-    const { parsed, errors: errs } = parseBlock(text, db)
+    const { parsed, errors: errs, openingBalance: opBal, closingBalance: clBal } = parseBlock(text, db)
     if (parsed.length === 0) {
       setErrors(errs)
       return
     }
     setRows(parsed)
     setErrors(errs)
+    if (opBal !== undefined) setOpeningBalance(opBal)
+    if (clBal !== undefined) setClosingBalance(clBal)
     setStage('review')
   }
 
@@ -199,6 +203,11 @@ export function Import() {
     const toImport = rows.filter((_, i) => !(duplicateIds[i] && skipDups))
     const dup = rows.length - toImport.length
     addParsedTransactions(toImport, 'import')
+
+    if (openingBalance !== null && (!db.profile?.initialBalance || db.profile.initialBalance === 0)) {
+      updateProfile({ initialBalance: openingBalance })
+    }
+
     const count = toImport.length
     setImportedCount(count)
     setSkippedDups(dup)
@@ -360,13 +369,36 @@ export function Import() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-lg font-bold">{rows.length} transaction{rows.length > 1 ? 's' : ''} detected</h3>
-                <p className="mt-1 text-sm text-base-muted">
-                  Income <span className="font-semibold text-positive">{money(totals.income)}</span> · Expenses{' '}
-                  <span className="font-semibold text-negative">{money(totals.expenses)}</span> · Net{' '}
-                  <span className={cn('font-semibold', totals.net >= 0 ? 'text-positive' : 'text-negative')}>
-                    {money(totals.net)}
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-base-muted">
+                  {openingBalance !== null && (
+                    <span>
+                      Opening Balance <span className="font-semibold text-base">{money(openingBalance)}</span>
+                    </span>
+                  )}
+                  {openingBalance !== null && <span>·</span>}
+                  <span>
+                    Income <span className="font-semibold text-positive">+{money(totals.income)}</span>
                   </span>
-                </p>
+                  <span>·</span>
+                  <span>
+                    Expenses <span className="font-semibold text-negative">−{money(totals.expenses)}</span>
+                  </span>
+                  <span>·</span>
+                  <span>
+                    {closingBalance !== null ? (
+                      <>
+                        Statement Closing Balance <span className="font-bold text-emerald-400">{money(closingBalance)}</span>
+                      </>
+                    ) : (
+                      <>
+                        Net{' '}
+                        <span className={cn('font-semibold', totals.net >= 0 ? 'text-positive' : 'text-negative')}>
+                          {money(totals.net)}
+                        </span>
+                      </>
+                    )}
+                  </span>
+                </div>
               </div>
               <label className="flex items-center gap-2 text-sm text-base-muted">
                 <input
