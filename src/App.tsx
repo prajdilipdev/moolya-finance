@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense, lazy } from 'react'
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { AppProvider } from '@/context/AppContext'
 import { AuthProvider } from '@/context/AuthContext'
@@ -17,8 +17,12 @@ import { Goals } from '@/pages/Goals'
 import { Debts } from '@/pages/Debts'
 import { Analytics } from '@/pages/Analytics'
 import { Reports } from '@/pages/Reports'
-import { Import } from '@/pages/Import'
 import { Settings } from '@/pages/Settings'
+
+// Import pulls in pdfjs-dist + xlsx (via bankParser.ts) for bank-statement
+// parsing — around 800KB. Loading it lazily means that only downloads for
+// someone who actually opens the Import page, not on every visit.
+const Import = lazy(() => import('@/pages/Import').then((m) => ({ default: m.Import })))
 
 export default function App() {
   return (
@@ -41,7 +45,14 @@ export default function App() {
                     <Route path="/debts" element={<Debts />} />
                     <Route path="/analytics" element={<Analytics />} />
                     <Route path="/reports" element={<Reports />} />
-                    <Route path="/import" element={<Import />} />
+                    <Route
+                      path="/import"
+                      element={
+                        <Suspense fallback={<div className="flex justify-center py-16 text-sm text-base-muted">Loading…</div>}>
+                          <Import />
+                        </Suspense>
+                      }
+                    />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="*" element={<Dashboard />} />
                   </Route>

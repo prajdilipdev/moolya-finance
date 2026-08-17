@@ -1,7 +1,7 @@
 import { ParsedTransaction, TransactionType, Category, UserCategoryRule, DB } from './types'
 import { guessCategory, matchRuleToCategory, findOrCreateCategory } from './categories'
 import { todayISO, toISODate, addDays, uid } from './format'
-import { cleanNarration } from './bankParser'
+import { cleanNarration } from './narration'
 
 // ===========================================================================
 // Foreign Exchange Rates to INR (1 Foreign Unit = X INR)
@@ -17,6 +17,42 @@ export const FX_RATES_TO_INR: Record<string, number> = {
   SGD: 74.60,
   JPY: 0.64,
   CHF: 112.00,
+}
+
+const CURRENCY_SYMBOL_MAP: Record<string, string> = { $: 'USD', '€': 'EUR', '£': 'GBP' }
+
+/**
+ * Detects a foreign-currency marker in a raw amount cell/string (a symbol or
+ * an ISO code word) before it gets stripped down to a plain number.
+ */
+function detectForeignCurrency(raw: string): { currency: string; rate: number } | null {
+  for (const [sym, code] of Object.entries(CURRENCY_SYMBOL_MAP)) {
+    if (raw.includes(sym)) return { currency: code, rate: FX_RATES_TO_INR[code] }
+  }
+  const m = raw.match(/\b(usd|eur|gbp|aed|cad|aud|sgd|jpy|chf)\b/i)
+  if (m) {
+    const code = m[1].toUpperCase()
+    if (code in FX_RATES_TO_INR) return { currency: code, rate: FX_RATES_TO_INR[code] }
+  }
+  return null
+}
+
+/**
+ * Converts a raw amount string to its INR-equivalent, the convention every
+ * calculation in this app assumes `Transaction.amount` already follows.
+ * Used by the CSV and table importers, which — unlike the free-text
+ * parser's extractAmount() — were reading a foreign amount's digits but
+ * storing them as if they were already rupees, silently understating any
+ * total that included a foreign-currency row.
+ */
+function parseAmountToINR(raw: string, explicitCurrency?: string): { amount: number; original: { amount: number; currency: string } | null } {
+  const numeric = parseFloat(raw.replace(/[^\d.-]/g, ''))
+  const currency = explicitCurrency && explicitCurrency !== 'INR' ? explicitCurrency : detectForeignCurrency(raw)?.currency
+  const rate = currency ? FX_RATES_TO_INR[currency] : undefined
+  if (currency && rate && isFinite(numeric)) {
+    return { amount: Math.round(numeric * rate * 100) / 100, original: { amount: numeric, currency } }
+  }
+  return { amount: numeric, original: null }
 }
 
 // ===========================================================================
@@ -513,20 +549,25 @@ export function parseMarkdownOrTsvTable(
     // 3. Amount & Type
     let amount = 0
     let type: TransactionType = 'expense'
+    let originalForeign: { amount: number; currency: string } | null = null
 
     if (idx.debit !== -1 && idx.credit !== -1) {
-      const debVal = parseFloat((cells[idx.debit] || '').replace(/[^\d.-]/g, ''))
-      const credVal = parseFloat((cells[idx.credit] || '').replace(/[^\d.-]/g, ''))
-      if (!isNaN(credVal) && credVal > 0) {
-        amount = credVal
+      const debit = parseAmountToINR(cells[idx.debit] || '')
+      const credit = parseAmountToINR(cells[idx.credit] || '')
+      if (!isNaN(credit.amount) && credit.amount > 0) {
+        amount = credit.amount
+        originalForeign = credit.original
         type = 'income'
-      } else if (!isNaN(debVal) && debVal > 0) {
-        amount = debVal
+      } else if (!isNaN(debit.amount) && debit.amount > 0) {
+        amount = debit.amount
+        originalForeign = debit.original
         type = 'expense'
       }
     } else if (idx.amount !== -1) {
       const amtStr = cells[idx.amount] || ''
-      amount = parseFloat(amtStr.replace(/[^\d.-]/g, ''))
+      const converted = parseAmountToINR(amtStr)
+      amount = converted.amount
+      originalForeign = converted.original
       const rawType = idx.type !== -1 ? (cells[idx.type] || '').toLowerCase() : ''
       if (rawType.includes('credit') || rawType === 'cr' || rawType === '+' || rawType.includes('income')) {
         type = 'income'
@@ -597,11 +638,15 @@ export function parseMarkdownOrTsvTable(
       subcategory = g.subcategory
     }
 
+    const description = originalForeign
+      ? `${cleanedDesc} (${originalForeign.currency} ${originalForeign.amount})`
+      : cleanedDesc
+
     parsed.push({
       amount: Math.round(amount * 100) / 100,
       currency: 'INR',
       type,
-      description: cleanedDesc,
+      description,
       category,
       subcategory,
       date: parsedDate,
@@ -640,8 +685,9 @@ export function parseCSV(raw: string): { parsed: ParsedTransaction[]; errors: { 
 
   for (const line of lines.slice(1)) {
     const cells = splitCSVLine(line)
-    const amount = parseFloat((cells[idx.amount] || '').replace(/[^\d.-]/g, ''))
-    if (!isFinite(amount) || amount <= 0) {
+    const rawCurrency = (cells[idx.currency] || 'INR').toUpperCase() || 'INR'
+    const converted = parseAmountToINR(cells[idx.amount] || '', rawCurrency)
+    if (!isFinite(converted.amount) || converted.amount <= 0) {
       errors.push({ line, reason: 'Missing or invalid amount.' })
       continue
     }
@@ -656,10 +702,13 @@ export function parseCSV(raw: string): { parsed: ParsedTransaction[]; errors: { 
     const date = detectDate((cells[idx.date] || '').trim()).date
 
     parsed.push({
-      amount: Math.round(amount * 100) / 100,
-      currency: (cells[idx.currency] || 'INR').toUpperCase() || 'INR',
+      amount: Math.round(converted.amount * 100) / 100,
+      // Every calculation in this app assumes amount is already an INR value —
+      // store the converted figure and note the source currency in the row
+      // rather than tagging a raw foreign number as INR.
+      currency: 'INR',
       type,
-      description,
+      description: converted.original ? `${description} (${converted.original.currency} ${converted.original.amount})` : description,
       category: cells[idx.category] || guessed.category,
       subcategory: cells[idx.subcategory] || guessed.subcategory,
       date: date || todayISO(),
@@ -681,7 +730,16 @@ export function parseBlock(
   openingBalance?: number
   closingBalance?: number
 } {
-  if (looksLikeTable(raw)) return parseMarkdownOrTsvTable(raw, db)
+  if (looksLikeTable(raw)) {
+    const tableResult = parseMarkdownOrTsvTable(raw, db)
+    // looksLikeTable() only checks the header line for a pipe/tab plus a
+    // common word like "amount" or "date" — ordinary text pasted from a
+    // spreadsheet or chat app can trip that with no real table underneath.
+    // A genuine table always yields at least one row; zero means this was a
+    // false positive, so fall through to the free-text parser instead of
+    // silently reporting "no transactions found".
+    if (tableResult.parsed.length > 0) return tableResult
+  }
   if (looksLikeCSV(raw)) return parseCSV(raw)
   const lines = splitInput(raw)
   const parsed: ParsedTransaction[] = []

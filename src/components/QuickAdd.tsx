@@ -60,14 +60,21 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
     const inc = toSave.filter((x) => x.type === 'income').reduce((s, x) => s + x.amount, 0)
     const exp = toSave.filter((x) => x.type === 'expense').reduce((s, x) => s + x.amount, 0)
     const last = toSave[toSave.length - 1]
+    // Instant-save skips the review step, so a badly-guessed amount/category
+    // now writes straight to the ledger with nothing to catch it. Since this
+    // is only ever called with what's about to be (or was just) saved, flag
+    // it here rather than saving it silently.
+    const uncertain = toSave.some((p) => p.confidence < 0.6)
 
     toast({
       title: added > 1 ? `${added} transactions added!` : `${last?.type === 'income' ? 'Income' : 'Expense'} added!`,
       message:
         added > 1
-          ? `Income ${money(inc)} · Expenses ${money(exp)}${skipped ? ` · ${skipped} duplicate${skipped > 1 ? 's' : ''} skipped` : ''}`
-          : `${money(last?.amount || 0)} · ${last?.description || ''} (${last?.category || 'Other'})`,
-      tone: 'success',
+          ? `Income ${money(inc)} · Expenses ${money(exp)}${skipped ? ` · ${skipped} duplicate${skipped > 1 ? 's' : ''} skipped` : ''}${uncertain ? ' · Wasn’t fully sure — check Transactions' : ''}`
+          : uncertain
+            ? `Wasn't fully sure about this one — ${money(last?.amount || 0)} · ${last?.description || ''} (${last?.category || 'Other'}). Check Transactions if that's wrong.`
+            : `${money(last?.amount || 0)} · ${last?.description || ''} (${last?.category || 'Other'})`,
+      tone: uncertain ? 'warning' : 'success',
     })
     setSavedCount(added)
     setStage('success')

@@ -94,13 +94,16 @@ export function Dashboard() {
           <div className="relative flex items-center justify-between">
             <span className="text-sm font-medium text-white/70">Available Balance</span>
             <span className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold backdrop-blur">
-              {db.profile?.currency || 'INR'} · {formatDate(range.start)}{range.start !== range.end ? ` – ${formatDate(range.end)}` : ''}
+              {db.profile?.currency || 'INR'} · All time
             </span>
           </div>
           <div className="relative mt-2 text-4xl font-extrabold tracking-tight sm:text-5xl">
-            <AnimatedNumber value={totals.balance} currency={db.profile?.currency} />
+            <AnimatedNumber value={allTotals.balance} currency={db.profile?.currency} />
           </div>
-          <div className="relative mt-6 grid grid-cols-3 gap-3">
+          <div className="relative mt-4 text-xs font-medium text-white/50">
+            {formatDate(range.start)}{range.start !== range.end ? ` – ${formatDate(range.end)}` : ''}
+          </div>
+          <div className="relative mt-2 grid grid-cols-3 gap-3">
             <div className="rounded-[13px] bg-white/[0.07] p-3 ring-1 ring-white/10">
               <div className="flex items-center gap-1 text-xs text-white/60"><ArrowUpRight className="h-3.5 w-3.5 text-emerald-300" /> Income</div>
               <div className="tabular mt-1 text-lg font-bold text-emerald-300"><AnimatedNumber value={totals.income} /></div>

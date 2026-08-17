@@ -82,6 +82,18 @@ export function Import() {
     return { income, expenses, net: income - expenses }
   }, [rows])
 
+  // Opening + credits − debits should equal the statement's own closing
+  // balance. A mismatch is the actual signal that a row was skipped or
+  // misparsed — showing the two figures side by side without checking them
+  // against each other (the previous behavior) meant that signal was
+  // computed nowhere and a shortfall would go unnoticed.
+  const reconciliation = useMemo(() => {
+    if (openingBalance === null || closingBalance === null) return null
+    const expected = Math.round((openingBalance + totals.income - totals.expenses) * 100) / 100
+    const diff = Math.round((closingBalance - expected) * 100) / 100
+    return { expected, diff, matches: Math.abs(diff) < 0.01 }
+  }, [openingBalance, closingBalance, totals])
+
   const analyzeText = () => {
     const { parsed, errors: errs, openingBalance: opBal, closingBalance: clBal } = parseBlock(text, db)
     if (parsed.length === 0) {
@@ -90,8 +102,10 @@ export function Import() {
     }
     setRows(parsed)
     setErrors(errs)
-    if (opBal !== undefined) setOpeningBalance(opBal)
-    if (clBal !== undefined) setClosingBalance(clBal)
+    // Reset first — a paste with no balance columns shouldn't inherit
+    // reconciliation figures left over from a previous import.
+    setOpeningBalance(opBal ?? null)
+    setClosingBalance(clBal ?? null)
     setStage('review')
   }
 
@@ -115,6 +129,8 @@ export function Import() {
         }
         if (res.transactions.length > 0) {
           setRows(res.transactions)
+          setOpeningBalance(res.openingBalance ?? null)
+          setClosingBalance(res.closingBalance ?? null)
           setStage('review')
           toast({
             title: 'Statement parsed',
@@ -133,6 +149,8 @@ export function Import() {
         const res = parseExcelOrCsvStatement(buffer, db)
         if (res.transactions.length > 0) {
           setRows(res.transactions)
+          setOpeningBalance(res.openingBalance ?? null)
+          setClosingBalance(res.closingBalance ?? null)
           setStage('review')
           toast({
             title: 'Statement parsed',
@@ -177,6 +195,8 @@ export function Import() {
 
     if (res.transactions.length > 0) {
       setRows(res.transactions)
+      setOpeningBalance(res.openingBalance ?? null)
+      setClosingBalance(res.closingBalance ?? null)
       setStage('review')
       toast({
         title: 'PDF unlocked & parsed',
@@ -403,6 +423,16 @@ export function Import() {
                     )}
                   </span>
                 </div>
+                {reconciliation && !reconciliation.matches && (
+                  <div className="mt-2 flex items-start gap-2 rounded-lg bg-warning-soft/60 px-3 py-2 text-xs text-warning">
+                    <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      Doesn't reconcile: opening balance + income − expenses works out to {money(reconciliation.expected)}, but
+                      the statement's own closing balance is {money(closingBalance!)} — a difference of {money(Math.abs(reconciliation.diff))}.
+                      Some rows may have been skipped or misread; check the table below before importing.
+                    </span>
+                  </div>
+                )}
               </div>
               <label className="flex items-center gap-2 text-sm text-base-muted">
                 <input
@@ -550,7 +580,7 @@ export function Import() {
           </div>
           <h3 className="text-xl font-bold">Statement imported successfully!</h3>
           <p className="mt-2 text-sm text-base-muted">
-            {importedCount} transactions saved to your Supabase Cloud Database · Income {money(totals.income)} · Expenses{' '}
+            {importedCount} transactions saved{cloudEnabled ? ' to your cloud database' : ''} · Income {money(totals.income)} · Expenses{' '}
             {money(totals.expenses)} · Net {money(totals.net)}
           </p>
           {skippedDups > 0 && (
@@ -562,6 +592,8 @@ export function Import() {
                 setStage('idle')
                 setText('')
                 setRows([])
+                setOpeningBalance(null)
+                setClosingBalance(null)
               }}
               className="btn-secondary"
             >

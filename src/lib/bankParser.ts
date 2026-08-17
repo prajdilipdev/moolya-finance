@@ -3,6 +3,9 @@ import * as pdfjsLib from 'pdfjs-dist'
 import { ParsedTransaction, DB } from './types'
 import { guessCategory, matchRuleToCategory } from './categories'
 import { toISODate } from './format'
+import { cleanNarration } from './narration'
+
+export { cleanNarration }
 
 // Configure PDF.js worker
 try {
@@ -64,149 +67,6 @@ export function detectBankTransactionType(
 
   // Fallback
   return creditAmount > 0 ? 'income' : 'expense'
-}
-
-// -----------------------------------------------------------------------------
-// UPI and Bank Narration Cleaner
-// -----------------------------------------------------------------------------
-
-export function cleanNarration(raw: string): {
-  description: string
-  paymentMethod: string | null
-  merchant: string | null
-} {
-  let text = (raw || '').replace(/\s+/g, ' ').trim()
-  if (!text) return { description: 'Transaction', paymentMethod: null, merchant: null }
-
-  let paymentMethod: string | null = null
-  let merchant: string | null = null
-
-  // 1. UPI Transaction (e.g. "UPI-AMAZON PAY ON DELIVE-AMZNLPA...", "UPI-SARANYA KANNAN-PAYTM...", "UPI-KALURAM...")
-  if (/^UPI[/-]/i.test(text) || /\bUPI\b/i.test(text)) {
-    paymentMethod = 'UPI'
-    const withoutPrefix = text.replace(/^UPI[/-]/i, '').trim()
-    const parts = withoutPrefix.split(/[-/]/).map((p) => p.trim()).filter(Boolean)
-
-    // Check for note suffix at the end (e.g. "JIO HOME WIFI", "TYRE PUNCTER", "VEG PUFF", "CLAUDE")
-    let noteSuffix: string | null = null
-    for (let i = parts.length - 1; i >= 1; i--) {
-      const p = parts[i]
-      if (
-        /^(JIO HOME WIFI|TYRE PUNCTER|VEG PUFF|CLAUDE|RENT|FOOD|MEDICINE|PETROL|CAB|SALARY|FREELANCE)$/i.test(p) ||
-        (/^[A-Z\s]{3,25}$/i.test(p) && !/PAYMENT|PHONE|FROM|BANK|HDFC|ICICI|SBI|AXIS|YESB|PUNB|CNRB/i.test(p))
-      ) {
-        if (!/@/.test(p) && !/\d{5,}/.test(p)) {
-          noteSuffix = p
-          break
-        }
-      }
-    }
-
-    // Find main name (e.g. "AMAZON PAY", "SARANYA KANNAN", "KALURAM", "APPLE MEDIA SERVICES", "JIO RECHARGE")
-    for (const p of parts) {
-      if (
-        !/^(UPI|DR|CR|AUTOPAY|PAYMENT|P2A|P2P|NA|NULL|\d+)$/i.test(p) &&
-        !/@/.test(p) &&
-        p.length >= 2
-      ) {
-        // Strip out noise words
-        merchant = p
-          .replace(/^(ON DELIVE|DELIVE|PAY TO|PAY VIA|PAYTM|GPAY|PHONEPE)\b/gi, '')
-          .replace(/\b(MAHENDARKUMAWAT\d+|THIRUSUDHA\d+|SUNILPRAJAPATI\d+|KUMARKDHIRAJ\d+|DEVARAM\.\w+)\b/gi, '')
-          .trim()
-        if (merchant) break
-      }
-    }
-
-    if (merchant && noteSuffix && !merchant.toLowerCase().includes(noteSuffix.toLowerCase())) {
-      merchant = `${merchant} - ${noteSuffix}`
-    } else if (!merchant && noteSuffix) {
-      merchant = noteSuffix
-    }
-  }
-
-  // 2. POS / Card swipes (e.g. "POS 526099XXXXXX4799 011961 14AUG26 19:44:28 SAN FRANCISCO RENDER.COM", "ME DC SI ... ANTHROPIC* CLAUDE SUB")
-  else if (/^(POS|ME DC SI|E-?COM|IPS|VISA|MASTERCARD|DEBIT CARD)/i.test(text)) {
-    paymentMethod = 'Credit Card'
-    if (/RENDER\.COM/i.test(text)) merchant = 'Render.com'
-    else if (/ANTHROPIC.*CLAUDE/i.test(text)) merchant = 'Anthropic Claude Sub'
-    else if (/ATLAS FUNDED/i.test(text)) merchant = 'Atlas Funded'
-    else {
-      const cleaned = text
-        .replace(/^(POS|ME DC SI|E-?COM|IPS|VISA|MASTERCARD|DEBIT CARD)\s*/i, '')
-        .replace(/\b\d{6,}\b/g, '')
-        .replace(/\b\d{2}[A-Za-z]{3}\d{2}\s+\d{2}:\d{2}:\d{2}\b/g, '') // remove timestamps e.g. 14AUG26 19:44:28
-        .replace(/\b(DUBAI TAP|SAN FRANCISCO|MUMBAI|BANGALORE|CHENNAI|DELHI)\b/gi, '')
-        .trim()
-      merchant = cleaned
-    }
-  }
-
-  // 3. ATM Withdrawals
-  else if (/ATM[- ]?WDL|CASH[- ]?WDL|ATM/i.test(text)) {
-    paymentMethod = 'Cash'
-    merchant = 'ATM Cash Withdrawal'
-  }
-
-  // 4. NEFT / IMPS / RTGS (e.g. "NEFT CR-CITI0100000-PAYPAL PAYMENTS PVT L PACB...")
-  else if (/^(NEFT|IMPS|RTGS|ACH|NACH|IFT|TPT)/i.test(text)) {
-    paymentMethod = 'Bank'
-    if (/PAYPAL/i.test(text)) {
-      merchant = 'PayPal Payments'
-    } else {
-      const cleaned = text
-        .replace(/^(NEFT|IMPS|RTGS|ACH|NACH|IFT|TPT)[ -]?(CR|DR)?[ -]?/i, '')
-        .replace(/\b[A-Z]{4}\d{7}\b/g, '') // strip IFSC
-        .replace(/\b(PACB|INR|INCA|TRANSFER|PAYMENT)\b/gi, '')
-        .trim()
-      const parts = cleaned.split(/[-/]/).map((s) => s.trim()).filter(Boolean)
-      merchant = parts[0] || cleaned
-    }
-  }
-
-  // 5. APY (Atal Pension Yojana) or Insurance/Tax
-  else if (/^APY\d+/i.test(text)) {
-    paymentMethod = 'Bank'
-    merchant = 'APY Pension Installment'
-  }
-
-  // 6. International POS markup / Bank charges
-  else if (/DC INTL POS TXN MARKUP/i.test(text)) {
-    paymentMethod = 'Bank'
-    merchant = 'Intl Card Markup & Tax'
-  } else if (/INT(EREST)?\.?\s*(PD|CR|CREDIT)?/i.test(text)) {
-    paymentMethod = 'Bank'
-    merchant = 'Bank Interest'
-  } else if (/CHARGES|SMS CHG|ANNUAL FEE/i.test(text)) {
-    paymentMethod = 'Bank'
-    merchant = 'Bank Service Charges'
-  }
-
-  let finalDesc = merchant || text
-  // Clean up remaining noise (trailing numbers, reference IDs)
-  finalDesc = finalDesc
-    .replace(/\b\d{8,}\b/g, '') // strip long reference numbers
-    .replace(/[/-]+$/, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-
-  if (!finalDesc || finalDesc.length < 2) {
-    finalDesc = text.slice(0, 40)
-  }
-
-  // Capitalize nicely
-  finalDesc = finalDesc
-    .toLowerCase()
-    .split(' ')
-    .filter(Boolean)
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ')
-
-  return {
-    description: finalDesc,
-    paymentMethod,
-    merchant: merchant || null,
-  }
 }
 
 // -----------------------------------------------------------------------------
@@ -370,7 +230,7 @@ function cleanAmount(val: unknown): number {
 export function parseExcelOrCsvStatement(
   data: ArrayBuffer | string,
   db: DB
-): { transactions: ParsedTransaction[]; bankName?: string } {
+): { transactions: ParsedTransaction[]; bankName?: string; openingBalance?: number; closingBalance?: number } {
   const workbook = typeof data === 'string'
     ? XLSX.read(data, { type: 'string' })
     : XLSX.read(new Uint8Array(data), { type: 'array' })
@@ -391,6 +251,7 @@ export function parseExcelOrCsvStatement(
   let creditCol = -1
   let amountCol = -1
   let typeCol = -1
+  let balanceCol = -1
 
   for (let r = 0; r < Math.min(rows.length, 30); r++) {
     const row = rows[r]
@@ -403,6 +264,7 @@ export function parseExcelOrCsvStatement(
     const credIdx = lower.findIndex((c) => /deposit|credit\b|^cr\b|cr\s*amt|cr\s*amount|deposited|paid\s*in/i.test(c))
     const amtIdx = lower.findIndex((c) => /amount|transaction\s*amount/i.test(c) && !/debit|credit|dr|cr/i.test(c))
     const tIdx = lower.findIndex((c) => /type|cr\/dr|dr\/cr|cr\s*\/\s*dr|txn\s*type/i.test(c))
+    const balIdx = lower.findIndex((c) => /closing\s*bal|balance/i.test(c))
 
     if (dIdx !== -1 && (descIdx !== -1 || (debIdx !== -1 || credIdx !== -1 || amtIdx !== -1))) {
       headerIndex = r
@@ -412,6 +274,7 @@ export function parseExcelOrCsvStatement(
       creditCol = credIdx
       amountCol = amtIdx
       typeCol = tIdx
+      balanceCol = balIdx
       break
     }
   }
@@ -425,6 +288,8 @@ export function parseExcelOrCsvStatement(
   }
 
   const transactions: ParsedTransaction[] = []
+  let openingBalance: number | null = null
+  let closingBalance: number | null = null
 
   for (let r = headerIndex + 1; r < rows.length; r++) {
     const row = rows[r]
@@ -457,7 +322,12 @@ export function parseExcelOrCsvStatement(
       }
     } else if (amountCol !== -1) {
       const rawAmt = row[amountCol]
-      const isNegative = typeof rawAmt === 'string' && (rawAmt.includes('-') || rawAmt.includes('('))
+      // typeof rawAmt === 'string' misses genuinely negative XLSX numeric
+      // cells (e.g. -500), which fell through to narration-keyword guessing
+      // and could misclassify a debit as income.
+      const isNegative = typeof rawAmt === 'number'
+        ? rawAmt < 0
+        : typeof rawAmt === 'string' && (rawAmt.includes('-') || rawAmt.includes('('))
       amount = cleanAmount(rawAmt)
       if (isNegative) {
         type = 'expense'
@@ -467,6 +337,19 @@ export function parseExcelOrCsvStatement(
     }
 
     if (amount <= 0) continue
+
+    // Back out the balance immediately before the first parsed transaction,
+    // then track the last row's balance as the statement's closing balance —
+    // same running-balance math as the Markdown/TSV table parser.
+    if (balanceCol !== -1) {
+      const rowBalance = cleanAmount(row[balanceCol])
+      if (rowBalance > 0) {
+        if (openingBalance === null) {
+          openingBalance = type === 'expense' ? Math.round((rowBalance + amount) * 100) / 100 : Math.round((rowBalance - amount) * 100) / 100
+        }
+        closingBalance = rowBalance
+      }
+    }
 
     const { description, paymentMethod, merchant } = cleanNarration(rawDesc)
     const { category, subcategory } = categorizeBankTransaction(description, rawDesc, type, db)
@@ -485,7 +368,7 @@ export function parseExcelOrCsvStatement(
     })
   }
 
-  return { transactions }
+  return { transactions, openingBalance: openingBalance ?? undefined, closingBalance: closingBalance ?? undefined }
 }
 
 // -----------------------------------------------------------------------------
@@ -512,7 +395,7 @@ export async function parsePdfStatement(
   data: ArrayBuffer,
   password: string | null,
   db: DB
-): Promise<{ transactions: ParsedTransaction[]; requiresPassword?: boolean }> {
+): Promise<{ transactions: ParsedTransaction[]; requiresPassword?: boolean; openingBalance?: number; closingBalance?: number }> {
   try {
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(data),
@@ -522,6 +405,11 @@ export async function parsePdfStatement(
     const pdf = await loadingTask.promise
     const numPages = pdf.numPages
     const transactions: ParsedTransaction[] = []
+    // Tracked across every page, in document order, so the statement's
+    // opening balance comes from the first transaction and closing balance
+    // from the last, not reset per page.
+    let openingBalance: number | null = null
+    let closingBalance: number | null = null
 
     for (let p = 1; p <= numPages; p++) {
       const page = await pdf.getPage(p)
@@ -584,8 +472,17 @@ export async function parsePdfStatement(
           continue
         }
 
-        // Check if row begins with a new transaction date (x < 100)
-        const dateMatch = firstItem && firstItem.x < 100 ? firstItem.str.match(/^(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/) : null
+        // Check if row begins with a new transaction date (x < 100). Some PDF
+        // generators split one date across several text runs (e.g. "16",
+        // "/", "08", "/", "2026") rather than emitting it as a single run —
+        // when the first run alone doesn't match, join every run still in
+        // the date column and retry, so that row isn't silently folded into
+        // the previous transaction as a continuation line.
+        const dateZoneItems = rowItems.filter((it) => it.x < 100)
+        let dateMatch = firstItem && firstItem.x < 100 ? firstItem.str.match(/^(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/) : null
+        if (!dateMatch && dateZoneItems.length > 1) {
+          dateMatch = dateZoneItems.map((it) => it.str).join('').match(/^(\d{1,2}[./-]\d{1,2}[./-]\d{2,4})/)
+        }
 
         if (dateMatch) {
           const parsedDate = parseBankDate(dateMatch[1])
@@ -615,8 +512,12 @@ export async function parsePdfStatement(
               }
             }
 
-            // Amount columns (x >= 370)
-            if (val > 0 && /\d+\.\d{2}/.test(it.str)) {
+            // Amount columns (x >= 370). Without this bound, a decimal-shaped
+            // token anywhere in the row — including inside the narration
+            // zone above — was nearest-column-matched to whichever of
+            // withdrawal/deposit/balance was numerically closest and could
+            // silently overwrite the real transaction amount.
+            if (val > 0 && it.x >= 370 && /\d+\.\d{2}/.test(it.str)) {
               // Compare distance to Withdrawal vs Deposit vs Balance
               const distWithdrawal = Math.abs(it.x - withdrawalX)
               const distDeposit = Math.abs(it.x - depositX)
@@ -657,6 +558,19 @@ export async function parsePdfStatement(
 
         if (amount <= 0) continue
 
+        // Same running-balance math as the Excel/CSV and Markdown/TSV table
+        // parsers: back out the pre-transaction balance from the first row
+        // that has one, then keep tracking the most recent row's balance.
+        if (block.closingBalance !== undefined && block.closingBalance > 0) {
+          if (openingBalance === null) {
+            openingBalance =
+              type === 'expense'
+                ? Math.round((block.closingBalance + amount) * 100) / 100
+                : Math.round((block.closingBalance - amount) * 100) / 100
+          }
+          closingBalance = block.closingBalance
+        }
+
         const { description, paymentMethod, merchant } = cleanNarration(rawNarration)
         const { category, subcategory } = categorizeBankTransaction(description, rawNarration, type, db)
 
@@ -675,7 +589,7 @@ export async function parsePdfStatement(
       }
     }
 
-    return { transactions }
+    return { transactions, openingBalance: openingBalance ?? undefined, closingBalance: closingBalance ?? undefined }
   } catch (err: any) {
     if (err?.name === 'PasswordException' || err?.message?.toLowerCase().includes('password')) {
       return { transactions: [], requiresPassword: true }
