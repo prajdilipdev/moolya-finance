@@ -70,12 +70,16 @@ export function TransactionRow({
         {money(t.amount, t.currency)}
       </span>
       {(onEdit || onDelete) && (
-        <div className="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
+        // Hover-reveal only kicks in at sm: and up (mouse-capable screens).
+        // There's no persistent :hover on touch, so gating this on
+        // group-hover from the base breakpoint made these buttons
+        // effectively undiscoverable on a phone — always visible below sm.
+        <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
           {onEdit && (
             <button
               type="button"
               onClick={() => onEdit(t)}
-              className="rounded-lg p-1.5 text-base-muted hover:bg-base/10 hover:text-base"
+              className="rounded-lg p-2 text-base-muted hover:bg-base/10 hover:text-base sm:p-1.5"
               aria-label="Edit transaction"
               title="Edit"
             >
@@ -86,7 +90,7 @@ export function TransactionRow({
             <button
               type="button"
               onClick={() => onDelete(t)}
-              className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative transition-colors"
+              className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative transition-colors sm:p-1.5"
               aria-label="Delete transaction"
               title="Delete"
             >

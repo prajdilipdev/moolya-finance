@@ -66,17 +66,17 @@ export function Recurring() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <div className="card p-4">
-          <div className="text-xs text-base-muted">Monthly recurring income</div>
-          <div className="tabular mt-1 text-2xl font-extrabold text-positive">{money(monthlyInflow)}</div>
+        <div className="card min-w-0 p-4">
+          <div className="truncate text-xs text-base-muted">Monthly recurring income</div>
+          <div className="tabular mt-1 truncate text-xl font-extrabold text-positive sm:text-2xl">{money(monthlyInflow)}</div>
         </div>
-        <div className="card p-4">
-          <div className="text-xs text-base-muted">Monthly recurring expenses</div>
-          <div className="tabular mt-1 text-2xl font-extrabold text-negative">{money(monthlyOutflow)}</div>
+        <div className="card min-w-0 p-4">
+          <div className="truncate text-xs text-base-muted">Monthly recurring expenses</div>
+          <div className="tabular mt-1 truncate text-xl font-extrabold text-negative sm:text-2xl">{money(monthlyOutflow)}</div>
         </div>
-        <div className="card p-4 col-span-2 sm:col-span-1">
-          <div className="text-xs text-base-muted">Net recurring</div>
-          <div className={cn('tabular mt-1 text-2xl font-extrabold', monthlyInflow - monthlyOutflow >= 0 ? 'text-positive' : 'text-negative')}>{money(monthlyInflow - monthlyOutflow)}</div>
+        <div className="card col-span-2 min-w-0 p-4 sm:col-span-1">
+          <div className="truncate text-xs text-base-muted">Net recurring</div>
+          <div className={cn('tabular mt-1 truncate text-xl font-extrabold sm:text-2xl', monthlyInflow - monthlyOutflow >= 0 ? 'text-positive' : 'text-negative')}>{money(monthlyInflow - monthlyOutflow)}</div>
         </div>
       </div>
 

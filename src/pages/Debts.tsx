@@ -28,21 +28,21 @@ export function Debts() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="card p-4">
-          <div className="text-xs text-base-muted">Total balance</div>
-          <div className="tabular mt-1 text-2xl font-extrabold text-negative">{money(totalBalance)}</div>
+        <div className="card min-w-0 p-4">
+          <div className="truncate text-xs text-base-muted">Total balance</div>
+          <div className="tabular mt-1 truncate text-xl font-extrabold text-negative sm:text-2xl">{money(totalBalance)}</div>
         </div>
-        <div className="card p-4">
-          <div className="text-xs text-base-muted">Paid off</div>
-          <div className="tabular mt-1 text-2xl font-extrabold text-positive">{money(paid)}</div>
+        <div className="card min-w-0 p-4">
+          <div className="truncate text-xs text-base-muted">Paid off</div>
+          <div className="tabular mt-1 truncate text-xl font-extrabold text-positive sm:text-2xl">{money(paid)}</div>
         </div>
-        <div className="card p-4">
-          <div className="text-xs text-base-muted">Monthly obligation</div>
-          <div className="tabular mt-1 text-2xl font-extrabold">{money(monthlyObligation)}</div>
+        <div className="card min-w-0 p-4">
+          <div className="truncate text-xs text-base-muted">Monthly obligation</div>
+          <div className="tabular mt-1 truncate text-xl font-extrabold sm:text-2xl">{money(monthlyObligation)}</div>
         </div>
-        <div className="card p-4">
-          <div className="text-xs text-base-muted">Progress</div>
-          <div className="tabular mt-1 text-2xl font-extrabold text-accent">{Math.round(pct(paid, totalOriginal))}%</div>
+        <div className="card min-w-0 p-4">
+          <div className="truncate text-xs text-base-muted">Progress</div>
+          <div className="tabular mt-1 truncate text-xl font-extrabold text-accent sm:text-2xl">{Math.round(pct(paid, totalOriginal))}%</div>
         </div>
       </div>
 

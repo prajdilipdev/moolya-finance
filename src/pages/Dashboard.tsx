@@ -81,7 +81,7 @@ export function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="card relative mt-4 overflow-hidden border-emerald-500/20 bg-[linear-gradient(145deg,#060C09,#0E1D16)] p-6 text-white shadow-[0_10px_30px_-10px_rgba(16,185,129,0.15)]"
+          className="card relative mt-4 overflow-hidden border-emerald-500/20 bg-[linear-gradient(145deg,#060C09,#0E1D16)] p-5 text-white shadow-[0_10px_30px_-10px_rgba(16,185,129,0.15)] sm:p-6"
         >
           <div
             className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-25"
@@ -91,30 +91,38 @@ export function Dashboard() {
             className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full opacity-15"
             style={{ background: 'radial-gradient(circle, #059669 0%, transparent 70%)' }}
           />
-          <div className="relative flex items-center justify-between">
+          <div className="relative flex items-center justify-between gap-2">
             <span className="text-sm font-medium text-white/70">Available Balance</span>
-            <span className="flex items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold backdrop-blur">
+            <span className="flex shrink-0 items-center gap-1 rounded-full bg-white/10 px-2.5 py-1 text-xs font-semibold backdrop-blur">
               {db.profile?.currency || 'INR'} · All time
             </span>
           </div>
-          <div className="relative mt-2 text-4xl font-extrabold tracking-tight sm:text-5xl">
+          {/* A real balance can run to 8+ digits (₹1,23,45,678) — truncate is
+              the safety net so it clips with an ellipsis instead of forcing
+              the card wider than the phone screen. */}
+          <div className="relative mt-2 truncate text-3xl font-extrabold tracking-tight sm:text-4xl lg:text-5xl">
             <AnimatedNumber value={allTotals.balance} currency={db.profile?.currency} />
           </div>
           <div className="relative mt-4 text-xs font-medium text-white/50">
             {formatDate(range.start)}{range.start !== range.end ? ` – ${formatDate(range.end)}` : ''}
           </div>
-          <div className="relative mt-2 grid grid-cols-3 gap-3">
-            <div className="rounded-[13px] bg-white/[0.07] p-3 ring-1 ring-white/10">
-              <div className="flex items-center gap-1 text-xs text-white/60"><ArrowUpRight className="h-3.5 w-3.5 text-emerald-300" /> Income</div>
-              <div className="tabular mt-1 text-lg font-bold text-emerald-300"><AnimatedNumber value={totals.income} /></div>
+          <div className="relative mt-2 grid grid-cols-3 gap-2 sm:gap-3">
+            {/* min-w-0 matters here: a grid item's default min-width is its
+                content size, so a wide balance (e.g. ₹1,23,456) would push
+                the column wider than its 1fr track and force the whole card
+                to overflow horizontally on a narrow phone rather than
+                shrinking to fit. truncate is the fallback if it still doesn't fit. */}
+            <div className="min-w-0 rounded-[13px] bg-white/[0.07] p-2.5 ring-1 ring-white/10 sm:p-3">
+              <div className="flex items-center gap-1 text-xs text-white/60"><ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-emerald-300" /> Income</div>
+              <div className="tabular mt-1 truncate text-base font-bold text-emerald-300 sm:text-lg"><AnimatedNumber value={totals.income} /></div>
             </div>
-            <div className="rounded-[13px] bg-white/[0.07] p-3 ring-1 ring-white/10">
-              <div className="flex items-center gap-1 text-xs text-white/60"><ArrowDownRight className="h-3.5 w-3.5 text-red-300" /> Expenses</div>
-              <div className="tabular mt-1 text-lg font-bold text-red-300"><AnimatedNumber value={totals.expenses} /></div>
+            <div className="min-w-0 rounded-[13px] bg-white/[0.07] p-2.5 ring-1 ring-white/10 sm:p-3">
+              <div className="flex items-center gap-1 text-xs text-white/60"><ArrowDownRight className="h-3.5 w-3.5 shrink-0 text-red-300" /> Expenses</div>
+              <div className="tabular mt-1 truncate text-base font-bold text-red-300 sm:text-lg"><AnimatedNumber value={totals.expenses} /></div>
             </div>
-            <div className="rounded-[13px] bg-white/[0.07] p-3 ring-1 ring-white/10">
-              <div className="flex items-center gap-1 text-xs text-white/60"><PiggyBank className="h-3.5 w-3.5 text-sky-300" /> Savings</div>
-              <div className="tabular mt-1 text-lg font-bold text-sky-300"><AnimatedNumber value={totals.savings} /></div>
+            <div className="min-w-0 rounded-[13px] bg-white/[0.07] p-2.5 ring-1 ring-white/10 sm:p-3">
+              <div className="flex items-center gap-1 text-xs text-white/60"><PiggyBank className="h-3.5 w-3.5 shrink-0 text-sky-300" /> Savings</div>
+              <div className="tabular mt-1 truncate text-base font-bold text-sky-300 sm:text-lg"><AnimatedNumber value={totals.savings} /></div>
             </div>
           </div>
         </motion.div>

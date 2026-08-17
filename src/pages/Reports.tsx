@@ -97,15 +97,15 @@ export function Reports() {
           <Badge tone="accent" className="!bg-white/10 !text-emerald-300">Savings rate {Math.round(totals.savingsRate)}%</Badge>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div><div className="text-xs text-white/60">Income</div><div className="tabular mt-1 text-xl font-bold">{money(totals.income)}</div></div>
-          <div><div className="text-xs text-white/60">Expenses</div><div className="tabular mt-1 text-xl font-bold">{money(totals.expenses)}</div></div>
-          <div><div className="text-xs text-white/60">Savings</div><div className="tabular mt-1 text-xl font-bold text-emerald-300">{money(totals.savings)}</div></div>
-          <div><div className="text-xs text-white/60">Budget usage</div><div className="tabular mt-1 text-xl font-bold">{budgetUse ? `${Math.round(budgetUse.usedPct)}%` : '—'}</div></div>
+          <div className="min-w-0"><div className="text-xs text-white/60">Income</div><div className="tabular mt-1 truncate text-xl font-bold">{money(totals.income)}</div></div>
+          <div className="min-w-0"><div className="text-xs text-white/60">Expenses</div><div className="tabular mt-1 truncate text-xl font-bold">{money(totals.expenses)}</div></div>
+          <div className="min-w-0"><div className="text-xs text-white/60">Savings</div><div className="tabular mt-1 truncate text-xl font-bold text-emerald-300">{money(totals.savings)}</div></div>
+          <div className="min-w-0"><div className="text-xs text-white/60">Budget usage</div><div className="tabular mt-1 truncate text-xl font-bold">{budgetUse ? `${Math.round(budgetUse.usedPct)}%` : '—'}</div></div>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-4 border-t border-white/10 pt-4 text-sm sm:grid-cols-3">
-          <div><div className="text-xs text-white/60">Top category</div><div className="font-semibold">{byCat[0] ? `${byCat[0].name} · ${money(byCat[0].amount)}` : '—'}</div></div>
-          <div><div className="text-xs text-white/60">Largest expense</div><div className="font-semibold">{largestExp ? `${largestExp.description} · ${money(largestExp.amount)}` : '—'}</div></div>
-          <div>
+          <div className="min-w-0"><div className="text-xs text-white/60">Top category</div><div className="truncate font-semibold">{byCat[0] ? `${byCat[0].name} · ${money(byCat[0].amount)}` : '—'}</div></div>
+          <div className="min-w-0"><div className="text-xs text-white/60">Largest expense</div><div className="truncate font-semibold">{largestExp ? `${largestExp.description} · ${money(largestExp.amount)}` : '—'}</div></div>
+          <div className="col-span-2 min-w-0 sm:col-span-1">
             <div className="text-xs text-white/60">vs previous month</div>
             <div className="font-semibold">Expenses <span className={expChange <= 0 ? 'text-emerald-300' : 'text-red-300'}>{expChange <= 0 ? '↓' : '↑'} {Math.abs(expChange).toFixed(1)}%</span> · Savings <span className={savChange >= 0 ? 'text-emerald-300' : 'text-red-300'}>{savChange >= 0 ? '↑' : '↓'} {Math.abs(savChange).toFixed(1)}%</span></div>
           </div>
