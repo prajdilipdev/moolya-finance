@@ -178,7 +178,7 @@ function AuthScreen() {
 
         <p className="mt-4 flex items-start justify-center gap-1.5 px-2 text-center text-[11px] leading-relaxed text-base-muted">
           <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-positive" />
-          <span>Your finances stay on this device. The account only controls who can open the app.</span>
+          <span>Your finances sync to your own private Supabase database, protected by row-level security — only your account can ever read or write your records.</span>
         </p>
       </motion.div>
     </div>

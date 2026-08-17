@@ -17,8 +17,14 @@ create table if not exists public.profiles (
   theme text not null default 'system',
   onboarded boolean not null default false,
   monthly_income numeric,
+  initial_balance numeric,
   created_at timestamptz not null default now()
 );
+-- Safe on a table that already exists from an earlier run of this file —
+-- `create table if not exists` above is a no-op once the table exists, so
+-- new columns must be added here for anyone who applied the schema before
+-- initial_balance was introduced.
+alter table public.profiles add column if not exists initial_balance numeric;
 alter table public.profiles enable row level security;
 drop policy if exists "profiles_select_own" on public.profiles;
 drop policy if exists "profiles_insert_own" on public.profiles;

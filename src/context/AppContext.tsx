@@ -15,7 +15,7 @@ import {
   ParsedTransaction,
   Source,
 } from '@/lib/types'
-import { loadDB, saveDB, defaultDB, seedData, clearDB, exportJSON, importJSON, applyDueRecurring } from '@/lib/store'
+import { loadDB, saveDB, defaultDB, seedData, clearDB, exportJSON, importJSON, applyDueRecurring, getLastCloudUser, setLastCloudUser } from '@/lib/store'
 import { materializeInto } from '@/lib/parser'
 import { uid, todayISO } from '@/lib/format'
 import { useAuth } from './AuthContext'
@@ -58,7 +58,8 @@ interface AppContextValue {
   updateProfile: (p: Partial<Profile>) => void
   // transactions
   addTransactions: (txs: Array<Omit<Transaction, 'id' | 'createdAt' | 'updatedAt'>>) => string[]
-  addParsedTransactions: (parsed: ParsedTransaction[], source: Source) => void
+  /** Returns how many were actually saved vs. skipped as duplicates, so callers can tell the user the truth. */
+  addParsedTransactions: (parsed: ParsedTransaction[], source: Source) => { added: number; skipped: number }
   updateTransaction: (id: string, patch: Partial<Transaction>) => void
   deleteTransactions: (ids: string[]) => void
   // budgets
@@ -97,6 +98,37 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null)
 
+/**
+ * Runs the recurring auto-create engine and, for signed-in users, pushes
+ * whatever it produced up to Supabase.
+ *
+ * applyDueRecurring() only returns a new local DB — it never talks to the
+ * network. Without this wrapper, every cloud fetch (sign-in, "Sync Now",
+ * every future re-login) would materialize the same due recurring items
+ * locally, never see them again after the next cloud fetch (since they were
+ * never saved to Supabase), and materialize them again — silently
+ * double- or triple-counting income/expenses over time for anyone using
+ * recurring auto-create while signed in.
+ */
+function runRecurringAndSync(db: DB, userId: string | null): DB {
+  const beforeCount = db.transactions.length
+  const beforeDue = new Map(db.recurring.map((r) => [r.id, r.nextDueDate]))
+
+  const result = applyDueRecurring(db)
+  if (!userId) return result
+
+  const createdCount = result.transactions.length - beforeCount
+  if (createdCount > 0) {
+    const created = result.transactions.slice(0, createdCount)
+    cloudUpsertTransactions(created, userId).catch(console.error)
+  }
+  const changedRecurring = result.recurring.filter((r) => beforeDue.get(r.id) !== r.nextDueDate)
+  if (changedRecurring.length > 0) {
+    Promise.all(changedRecurring.map((r) => cloudUpsertRecurring(r, userId))).catch(console.error)
+  }
+  return result
+}
+
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user, enabled: authEnabled } = useAuth()
   const { toast } = useToast()
@@ -125,13 +157,19 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!active) return
 
         if (cloudData && (cloudData.transactions.length > 0 || cloudData.categories.length > 0)) {
-          const fresh = applyDueRecurring(cloudData)
+          const fresh = runRecurringAndSync(cloudData, userId)
           setDb(fresh)
           saveDB(fresh)
           setLastSyncedAt(new Date().toISOString())
         } else {
-          // New cloud user: seed with initial or local data
-          const current = dbRef.current
+          // New cloud user: seed with local data — but only if this device's
+          // local cache actually belongs to this account. On a shared device,
+          // a second account signing in after a first account already synced
+          // would otherwise see the first account's leftover local data,
+          // conclude (correctly) that ITS OWN cloud is empty, and upload the
+          // first account's private transactions into the second account.
+          const lastSyncedFor = getLastCloudUser()
+          const current = lastSyncedFor && lastSyncedFor !== userId ? seedData(defaultDB()) : dbRef.current
           const seedTarget: DB = {
             ...current,
             profile: {
@@ -156,6 +194,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           saveDB(seedTarget)
           setLastSyncedAt(new Date().toISOString())
         }
+        setLastCloudUser(userId)
       } catch (err) {
         console.error('Error syncing cloud data on mount:', err)
       } finally {
@@ -206,7 +245,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const cloudData = await fetchCloudDB(userId)
       if (cloudData) {
-        const merged = applyDueRecurring(cloudData)
+        const merged = runRecurringAndSync(cloudData, userId)
         setDb(merged)
         saveDB(merged)
         setLastSyncedAt(new Date().toISOString())
@@ -272,6 +311,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const now = new Date().toISOString()
       let createdTransactions: Transaction[] = []
       let newCategories: Category[] = []
+      let skippedCount = 0
 
       const dedupeKey = (date: string, type: string, amount: number, desc: string): string => {
         const cleanDesc = (desc || '').toLowerCase().replace(/[^a-z0-9]/g, '')
@@ -291,6 +331,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const filtered = parsed.filter((p) => {
           const key = dedupeKey(p.date || todayISO(), p.type, p.amount, p.description)
           if (existingKeys.has(key) || batchKeys.has(key)) {
+            skippedCount++
             return false // skip duplicate entry!
           }
           batchKeys.add(key)
@@ -334,6 +375,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           cloudUpsertTransactions(createdTransactions, userId).catch(console.error)
         }
       }
+      return { added: createdTransactions.length, skipped: skippedCount }
     },
     [update, userId]
   )

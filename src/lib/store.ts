@@ -52,6 +52,33 @@ export function clearDB(): void {
   }
 }
 
+const LAST_CLOUD_USER_KEY = 'aavishkar.finance.lastCloudUser'
+
+/**
+ * Which signed-in account this device's local cache was last synced for.
+ *
+ * On a shared device, a second account signing in after a first account
+ * synced would otherwise see the first account's leftover local data and
+ * (believing it has "no cloud data yet") upload it into the second
+ * account's cloud tables. Comparing against this marker before treating
+ * local data as "mine to upload" closes that leak.
+ */
+export function getLastCloudUser(): string | null {
+  try {
+    return localStorage.getItem(LAST_CLOUD_USER_KEY)
+  } catch {
+    return null
+  }
+}
+
+export function setLastCloudUser(userId: string): void {
+  try {
+    localStorage.setItem(LAST_CLOUD_USER_KEY, userId)
+  } catch {
+    /* ignore */
+  }
+}
+
 export function exportJSON(db: DB): string {
   return JSON.stringify(db, null, 2)
 }

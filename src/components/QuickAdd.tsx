@@ -16,7 +16,7 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
   const { toast } = useToast()
   const [text, setText] = useState('')
   const [stage, setStage] = useState<'idle' | 'parsing' | 'success'>('idle')
-  const [results, setResults] = useState<ParsedTransaction[]>([])
+  const [savedCount, setSavedCount] = useState(0)
   const [errors, setErrors] = useState<{ line: string; reason: string }[]>([])
   const [errorFlash, setErrorFlash] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -35,7 +35,7 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
       const t = setTimeout(() => {
         setStage('idle')
         setText('')
-        setResults([])
+        setSavedCount(0)
         setErrors([])
         onDone?.()
       }, onDone ? 600 : 1200)
@@ -44,22 +44,32 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
   }, [stage, onDone])
 
   const executeSave = (toSave: ParsedTransaction[]) => {
-    addParsedTransactions(toSave, 'quick_entry')
+    const { added, skipped } = addParsedTransactions(toSave, 'quick_entry')
+
+    if (added === 0) {
+      // Everything in this batch already existed — nothing was actually saved.
+      setStage('idle')
+      toast({
+        title: skipped > 1 ? 'Already added' : 'Already added',
+        message: `${skipped > 1 ? 'These transactions match' : 'This matches'} something already in your ledger for the same date, amount and description.`,
+        tone: 'warning',
+      })
+      return
+    }
+
     const inc = toSave.filter((x) => x.type === 'income').reduce((s, x) => s + x.amount, 0)
     const exp = toSave.filter((x) => x.type === 'expense').reduce((s, x) => s + x.amount, 0)
     const last = toSave[toSave.length - 1]
 
     toast({
-      title:
-        toSave.length > 1
-          ? `${toSave.length} transactions added!`
-          : `${last?.type === 'income' ? 'Income' : 'Expense'} added!`,
+      title: added > 1 ? `${added} transactions added!` : `${last?.type === 'income' ? 'Income' : 'Expense'} added!`,
       message:
-        toSave.length > 1
-          ? `Income ${money(inc)} · Expenses ${money(exp)}`
+        added > 1
+          ? `Income ${money(inc)} · Expenses ${money(exp)}${skipped ? ` · ${skipped} duplicate${skipped > 1 ? 's' : ''} skipped` : ''}`
           : `${money(last?.amount || 0)} · ${last?.description || ''} (${last?.category || 'Other'})`,
       tone: 'success',
     })
+    setSavedCount(added)
     setStage('success')
   }
 
@@ -89,7 +99,6 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
     if (worthAsking) {
       const ai = await parseWithAI(text, db.categories)
       if (ai && ai.length > 0) {
-        setResults(ai)
         executeSave(ai)
         return
       }
@@ -104,7 +113,6 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
     }
 
     if (parsed.length > 0) {
-      setResults(parsed)
       executeSave(parsed)
       return
     }
@@ -115,7 +123,6 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
     const parsed = parseLine(`${calc.value}rs`, { categories: db.categories, rules: db.userCategoryRules })
     if (!parsed) return
     const toSave = [{ ...parsed, description: `Calc: ${calc.expression}`, category: 'Other', subcategory: null }]
-    setResults(toSave)
     executeSave(toSave)
   }
 
@@ -220,7 +227,7 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
                   <Check className="h-4 w-4" />
                 </div>
                 <span>
-                  Saved {results.length} transaction{results.length > 1 ? 's' : ''}! Available Balance updated.
+                  Saved {savedCount} transaction{savedCount > 1 ? 's' : ''}! Available Balance updated.
                 </span>
               </div>
             )}

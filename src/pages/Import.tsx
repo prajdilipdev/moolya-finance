@@ -38,7 +38,7 @@ Or use marks & categories:
 + 2k cashback #Income/Cashback`
 
 export function Import() {
-  const { db, addParsedTransactions, updateProfile } = useApp()
+  const { db, addParsedTransactions, updateProfile, cloudEnabled } = useApp()
   const { toast } = useToast()
   const [tab, setTab] = useState<'text' | 'bank'>('text')
   const [text, setText] = useState('')
@@ -200,22 +200,26 @@ export function Import() {
   const removeRow = (i: number) => setRows((prev) => prev.filter((_, idx) => idx !== i))
 
   const importAll = () => {
+    // Rows already flagged as duplicates by the review table are pre-filtered
+    // here; addParsedTransactions runs its own independent dedupe check
+    // against the live ledger too, so the true skipped count can be higher
+    // than what the review table caught (e.g. an import run twice in a row).
     const toImport = rows.filter((_, i) => !(duplicateIds[i] && skipDups))
-    const dup = rows.length - toImport.length
-    addParsedTransactions(toImport, 'import')
+    const preFiltered = rows.length - toImport.length
+    const { added, skipped } = addParsedTransactions(toImport, 'import')
+    const totalSkipped = preFiltered + skipped
 
     if (openingBalance !== null && (!db.profile?.initialBalance || db.profile.initialBalance === 0)) {
       updateProfile({ initialBalance: openingBalance })
     }
 
-    const count = toImport.length
-    setImportedCount(count)
-    setSkippedDups(dup)
+    setImportedCount(added)
+    setSkippedDups(totalSkipped)
     setStage('done')
     toast({
       title: 'Import completed',
-      message: `${count} transactions saved to cloud database${dup ? ` · ${dup} duplicates skipped` : ''}`,
-      tone: 'success',
+      message: `${added} transaction${added === 1 ? '' : 's'} saved${cloudEnabled ? ' to your cloud database' : ''}${totalSkipped ? ` · ${totalSkipped} duplicate${totalSkipped === 1 ? '' : 's'} skipped` : ''}`,
+      tone: added > 0 ? 'success' : 'warning',
     })
   }
 
