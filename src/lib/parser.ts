@@ -184,13 +184,20 @@ const EXPENSE_WORDS =
   /\b(spent|spent on|paid|pay|bought|purchased|billed|cost|buy|order|expense|bill payment|for the|paid for)\b/i
 const INCOME_HARD = /\b(salary|freelance|cashback|refund|interest|dividend|from client|received)\b/i
 
-export function detectType(text: string, base?: TransactionType | null): TransactionType {
+/**
+ * `fallback` is what to return when the text gives no signal either way —
+ * e.g. Quick Add opened from the Income or Expenses page passes the page's
+ * own type, so typing something with no explicit income/expense wording
+ * lands on that page's type instead of silently defaulting to expense.
+ */
+export function detectType(text: string, base?: TransactionType | null, fallback: TransactionType = 'expense'): TransactionType {
   if (base) return base
   const hasIncome = INCOME_HARD.test(text)
   const hasExpense = /(bill|emi|loan repayment|paid for|spent)/i.test(text)
   if (hasIncome && !hasExpense) return 'income'
   if (INCOME_WORDS.test(text) && !/(paid|bill)/i.test(text)) return 'income'
-  return 'expense'
+  if (EXPENSE_WORDS.test(text)) return 'expense'
+  return fallback
 }
 
 // ===========================================================================
@@ -256,7 +263,7 @@ export function detectDate(text: string): { text: string; date: string | null } 
 
 export function parseLine(
   raw: string,
-  opts: { categories?: Category[]; rules?: UserCategoryRule[]; date?: string | null } = {}
+  opts: { categories?: Category[]; rules?: UserCategoryRule[]; date?: string | null; defaultType?: TransactionType } = {}
 ): ParsedTransaction | null {
   let text = raw.trim()
   if (!text) return null
@@ -267,7 +274,7 @@ export function parseLine(
     return {
       amount: calc.value,
       currency: 'INR',
-      type: 'expense',
+      type: opts.defaultType || 'expense',
       description: calc.expression,
       category: 'Other',
       subcategory: null,
@@ -318,7 +325,7 @@ export function parseLine(
   text = amountRes.rest
 
   // Resolve type
-  const type = detectType(text, baseType)
+  const type = detectType(text, baseType, opts.defaultType)
 
   // Description = remaining text
   let description = text.replace(/[-\s,]+$/g, '').trim()
@@ -723,7 +730,11 @@ export function parseCSV(raw: string): { parsed: ParsedTransaction[]; errors: { 
 export function parseBlock(
   raw: string,
   db: DB,
-  contextDate?: string
+  contextDate?: string,
+  // What to assume when a line gives no income/expense signal at all — e.g.
+  // Quick Add opened from the Income or Expenses page passes that page's
+  // type, instead of every ambiguous line silently becoming an expense.
+  defaultType?: TransactionType
 ): {
   parsed: ParsedTransaction[]
   errors: { line: string; reason: string }[]
@@ -750,6 +761,7 @@ export function parseBlock(
       categories: db.categories,
       rules: db.userCategoryRules,
       date: contextDate || todayISO(),
+      defaultType,
     })
     if (p) parsed.push(p)
     else errors.push({ line, reason: 'Could not identify an amount.' })

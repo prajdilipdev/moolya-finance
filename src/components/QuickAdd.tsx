@@ -5,13 +5,22 @@ import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { parseBlock, parseLine, tryCalculator } from '@/lib/parser'
 import { isAIAvailable, parseWithAI } from '@/lib/ai'
-import { ParsedTransaction } from '@/lib/types'
+import { ParsedTransaction, TransactionType } from '@/lib/types'
 import { money } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 const EXAMPLES = ['200rs pav bhaji', '25k salary', '500 petrol', '30rs pani poori']
 
-export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; onDone?: () => void }) {
+export function QuickAdd({
+  autoFocus = false,
+  onDone,
+  defaultType,
+}: {
+  autoFocus?: boolean
+  onDone?: () => void
+  /** What to assume when typed text has no explicit income/expense signal — e.g. opened from the Income page. */
+  defaultType?: TransactionType
+}) {
   const { db, addParsedTransactions } = useApp()
   const { toast } = useToast()
   const [text, setText] = useState('')
@@ -89,7 +98,7 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
     e?.preventDefault()
     if (!text.trim() || stage === 'parsing') return
 
-    const { parsed, errors: errs } = parseBlock(text, db)
+    const { parsed, errors: errs } = parseBlock(text, db, undefined, defaultType)
     const lowConfidence = parsed.length > 0 && parsed.every((p) => p.confidence < 0.6)
     const worthAsking = isAIAvailable() && (parsed.length === 0 || lowConfidence)
 
@@ -127,7 +136,7 @@ export function QuickAdd({ autoFocus = false, onDone }: { autoFocus?: boolean; o
 
   const handleCalc = () => {
     if (!calc) return
-    const parsed = parseLine(`${calc.value}rs`, { categories: db.categories, rules: db.userCategoryRules })
+    const parsed = parseLine(`${calc.value}rs`, { categories: db.categories, rules: db.userCategoryRules, defaultType })
     if (!parsed) return
     const toSave = [{ ...parsed, description: `Calc: ${calc.expression}`, category: 'Other', subcategory: null }]
     executeSave(toSave)

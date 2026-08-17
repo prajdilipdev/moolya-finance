@@ -100,6 +100,15 @@ export function Layout() {
     setQuickAdd(false)
   }, [loc.pathname])
 
+  // Quick Add has no idea which page it was opened from otherwise, and
+  // ambiguous text (no explicit income/expense wording) used to silently
+  // default to expense even when opened from the Income page.
+  const quickAddDefaultType = loc.pathname.startsWith('/income')
+    ? 'income'
+    : loc.pathname.startsWith('/expenses')
+      ? 'expense'
+      : undefined
+
   const pageTitle =
     [...NAV_GROUPS.flatMap((g) => g.items), ...PINNED].find((n) =>
       n.end ? loc.pathname === n.to : loc.pathname.startsWith(n.to)
@@ -226,7 +235,7 @@ export function Layout() {
 
       {/* Global Quick Add modal */}
       <Modal open={quickAdd} onClose={() => setQuickAdd(false)} size="lg">
-        <QuickAdd autoFocus onDone={() => setQuickAdd(false)} />
+        <QuickAdd autoFocus onDone={() => setQuickAdd(false)} defaultType={quickAddDefaultType} />
       </Modal>
 
       <Onboarding />
