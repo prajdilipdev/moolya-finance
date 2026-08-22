@@ -209,7 +209,7 @@ export function Settings() {
               {db.categories.filter((c) => !c.parentId && c.type === 'expense').map((c) => (
                 <div key={c.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-base/5">
                   <span className="flex items-center gap-2 text-sm"><Icon name={c.icon} className="h-4 w-4 text-base-muted" /> {c.name} {c.system && <span className="text-[10px] text-base-muted">system</span>}</span>
-                  {!c.system && <button onClick={() => deleteCategory(c.id)} className="rounded p-1 text-base-muted hover:text-negative"><Trash2 className="h-3.5 w-3.5" /></button>}
+                  {!c.system && <button onClick={() => deleteCategory(c.id)} className="rounded p-2 text-base-muted hover:text-negative sm:p-1"><Trash2 className="h-3.5 w-3.5" /></button>}
                 </div>
               ))}
             </div>
@@ -242,7 +242,7 @@ export function Settings() {
               {db.userCategoryRules.map((r) => (
                 <div key={r.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-base/5">
                   <span className="text-sm"><span className="font-semibold">“{r.keyword}”</span> → {db.categories.find((c) => c.id === r.categoryId)?.name}</span>
-                  <button onClick={() => deleteRule(r.id)} className="rounded p-1 text-base-muted hover:text-negative"><Trash2 className="h-3.5 w-3.5" /></button>
+                  <button onClick={() => deleteRule(r.id)} className="rounded p-2 text-base-muted hover:text-negative sm:p-1"><Trash2 className="h-3.5 w-3.5" /></button>
                 </div>
               ))}
               {db.userCategoryRules.length === 0 && <p className="text-sm text-base-muted">No custom rules yet.</p>}

@@ -45,9 +45,9 @@ export function Goals() {
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => setContributing(g)} className="rounded-lg p-1.5 text-accent hover:bg-accent-soft" aria-label="Contribute"><ArrowUpRight className="h-4 w-4" /></button>
-                    <button onClick={() => setEditing(g)} className="rounded-lg p-1.5 text-base-muted hover:bg-base/5"><Pencil className="h-4 w-4" /></button>
-                    <button onClick={() => setToDelete(g)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => setContributing(g)} className="rounded-lg p-2 text-accent hover:bg-accent-soft sm:p-1.5" aria-label="Contribute"><ArrowUpRight className="h-4 w-4" /></button>
+                    <button onClick={() => setEditing(g)} className="rounded-lg p-2 text-base-muted hover:bg-base/5 sm:p-1.5"><Pencil className="h-4 w-4" /></button>
+                    <button onClick={() => setToDelete(g)} className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1.5"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
                 <div className="mt-4 flex items-end justify-between">

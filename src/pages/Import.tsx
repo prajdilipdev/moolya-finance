@@ -549,7 +549,7 @@ export function Import() {
                       <td className="px-3 py-2">
                         <button
                           onClick={() => removeRow(i)}
-                          className="rounded-lg p-1 text-base-muted hover:bg-negative-soft hover:text-negative"
+                          className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

@@ -75,11 +75,11 @@ export function Reports() {
           <h2 className="text-xl font-bold">Reports</h2>
           <p className="text-sm text-base-muted">Monthly summaries with export</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex items-center gap-1 rounded-xl bg-base/5 p-1">
-            <button onClick={() => setMonthOffset((o) => o - 1)} className="rounded-lg p-1.5 hover:bg-base/10" aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></button>
-            <span className="min-w-[120px] text-center text-sm font-semibold">{target.label}</span>
-            <button onClick={() => setMonthOffset((o) => Math.min(o + 1, 0))} className="rounded-lg p-1.5 hover:bg-base/10" aria-label="Next month"><ChevronRight className="h-4 w-4" /></button>
+            <button onClick={() => setMonthOffset((o) => o - 1)} className="rounded-lg p-2 hover:bg-base/10 sm:p-1.5" aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></button>
+            <span className="min-w-[100px] text-center text-sm font-semibold sm:min-w-[120px]">{target.label}</span>
+            <button onClick={() => setMonthOffset((o) => Math.min(o + 1, 0))} className="rounded-lg p-2 hover:bg-base/10 sm:p-1.5" aria-label="Next month"><ChevronRight className="h-4 w-4" /></button>
           </div>
           <button onClick={exportCSV} className="btn-secondary text-xs"><FileSpreadsheet className="h-4 w-4" /> CSV</button>
           <button onClick={exportJSON} className="btn-secondary text-xs"><FileJson className="h-4 w-4" /> Backup</button>

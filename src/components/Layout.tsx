@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   LayoutDashboard, List, WalletCards, CalendarClock, Receipt, Target, Scale, PieChart,
-  FileBarChart, Upload, Settings, Sparkles, Command as CommandIcon, LogOut, Wallet, Plus,
+  FileBarChart, Upload, Settings, Sparkles, Command as CommandIcon, LogOut, Wallet, Plus, Menu,
 } from 'lucide-react'
 import { useApp } from '@/context/AppContext'
 import { useAuth } from '@/context/AuthContext'
@@ -50,8 +50,12 @@ const MOBILE = [
   { to: '/', label: 'Home', icon: LayoutDashboard },
   { to: '/transactions', label: 'Activity', icon: List },
   { to: '/analytics', label: 'Insights', icon: PieChart },
-  { to: '/settings', label: 'Settings', icon: Settings },
 ]
+
+// Every page reachable from the mobile bottom bar / Menu drawer, used to
+// decide whether the current route falls outside the 3 pinned tabs (so the
+// Menu tab can show itself as active instead of looking unrelated to the page).
+const MOBILE_PINNED_PATHS = ['/', '/transactions', '/analytics']
 
 function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => void }) {
   return (
@@ -61,7 +65,11 @@ function NavItemLink({ item, onNavigate }: { item: NavItem; onNavigate?: () => v
       onClick={onNavigate}
       className={({ isActive }) =>
         cn(
-          'group relative flex items-center gap-3 rounded-[11px] px-3 py-2 text-[13px] font-medium transition-colors duration-150',
+          // py-2.5 (not desktop's tighter py-2) so this stays a comfortable
+          // tap target in the mobile drawer, which is the only place
+          // onNavigate is passed — the desktop sidebar never sets it.
+          'group relative flex items-center gap-3 rounded-[11px] px-3 text-[13px] font-medium transition-colors duration-150',
+          onNavigate ? 'py-2.5' : 'py-2',
           isActive ? 'bg-accent-soft text-accent' : 'text-base-muted hover:bg-base/5 hover:text-base'
         )
       }
@@ -82,6 +90,7 @@ export function Layout() {
   const auth = useAuth()
   const [palette, setPalette] = useState(false)
   const [quickAdd, setQuickAdd] = useState(false)
+  const [mobileMenu, setMobileMenu] = useState(false)
   const loc = useLocation()
 
   useEffect(() => {
@@ -98,7 +107,10 @@ export function Layout() {
   useEffect(() => {
     window.scrollTo(0, 0)
     setQuickAdd(false)
+    setMobileMenu(false)
   }, [loc.pathname])
+
+  const inMenuGroup = !MOBILE_PINNED_PATHS.some((p) => (p === '/' ? loc.pathname === '/' : loc.pathname.startsWith(p)))
 
   // Quick Add has no idea which page it was opened from otherwise, and
   // ambiguous text (no explicit income/expense wording) used to silently
@@ -206,7 +218,7 @@ export function Layout() {
             key={item.to}
             to={item.to}
             end={item.to === '/'}
-            className={({ isActive }) => cn('flex flex-col items-center gap-0.5 px-4 py-2.5', isActive ? 'text-accent' : 'text-base-muted')}
+            className={({ isActive }) => cn('flex min-w-[52px] flex-col items-center gap-0.5 px-4 py-2.5', isActive ? 'text-accent' : 'text-base-muted')}
           >
             <item.icon className="h-5 w-5" />
             <span className="text-[10px] font-semibold">{item.label}</span>
@@ -225,17 +237,74 @@ export function Layout() {
             key={item.to}
             to={item.to}
             end={item.to === '/'}
-            className={({ isActive }) => cn('flex flex-col items-center gap-0.5 px-4 py-2.5', isActive ? 'text-accent' : 'text-base-muted')}
+            className={({ isActive }) => cn('flex min-w-[52px] flex-col items-center gap-0.5 px-4 py-2.5', isActive ? 'text-accent' : 'text-base-muted')}
           >
             <item.icon className="h-5 w-5" />
             <span className="text-[10px] font-semibold">{item.label}</span>
           </NavLink>
         ))}
+        {/* Everything else (Income, Expenses, Reports, Budgets, Recurring,
+            Bills, Goals, Debts, Import, Settings) has no other on-screen
+            entry point on mobile — the sidebar with the full nav is lg:only,
+            and the command palette's command list doesn't cover every page
+            either. Without this, those pages are only reachable by typing
+            a URL directly. */}
+        <button
+          onClick={() => setMobileMenu(true)}
+          aria-label="More"
+          aria-expanded={mobileMenu}
+          className={cn('flex min-w-[52px] flex-col items-center gap-0.5 px-4 py-2.5', inMenuGroup ? 'text-accent' : 'text-base-muted')}
+        >
+          <Menu className="h-5 w-5" />
+          <span className="text-[10px] font-semibold">Menu</span>
+        </button>
       </nav>
 
       {/* Global Quick Add modal */}
       <Modal open={quickAdd} onClose={() => setQuickAdd(false)} size="lg">
         <QuickAdd autoFocus onDone={() => setQuickAdd(false)} defaultType={quickAddDefaultType} />
+      </Modal>
+
+      {/* Mobile "everything else" nav drawer */}
+      <Modal open={mobileMenu} onClose={() => setMobileMenu(false)} title="Menu" size="sm">
+        <nav className="space-y-4">
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label}>
+              <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">{group.label}</div>
+              <div className="space-y-0.5">
+                {group.items.map((item) => (
+                  <NavItemLink key={item.to} item={item} onNavigate={() => setMobileMenu(false)} />
+                ))}
+              </div>
+            </div>
+          ))}
+          <div>
+            <div className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-[0.1em] text-muted">More</div>
+            <div className="space-y-0.5">
+              {PINNED.map((item) => (
+                <NavItemLink key={item.to} item={item} onNavigate={() => setMobileMenu(false)} />
+              ))}
+            </div>
+          </div>
+        </nav>
+        {auth.enabled && auth.user && (
+          <div className="mt-4 flex items-center gap-2 border-t pt-3">
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-bold text-accent">
+              {initials(db.profile?.name || auth.user.email || 'U')}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-xs text-base-muted" title={auth.user.email}>
+              {auth.user.email}
+            </span>
+            <button
+              onClick={() => { setMobileMenu(false); auth.signOut() }}
+              className="shrink-0 rounded-lg p-2 text-base-muted hover:bg-base/5 hover:text-base"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </div>
+        )}
       </Modal>
 
       <Onboarding />

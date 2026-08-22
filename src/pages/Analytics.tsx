@@ -189,8 +189,8 @@ export function Analytics() {
 
         <div className="card p-5">
           <h3 className="text-sm font-bold">Fixed vs Variable</h3>
-          <div className="mt-4 flex items-center gap-6">
-            <div className="h-48 flex-1">
+          <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:gap-6">
+            <div className="h-48 sm:flex-1">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie data={fixedVariable} dataKey="value" nameKey="name" innerRadius={45} outerRadius={70} paddingAngle={3} strokeWidth={0}>

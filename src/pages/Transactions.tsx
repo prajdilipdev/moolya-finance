@@ -107,14 +107,14 @@ export function Transactions() {
             className="input pl-9"
           />
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <select
             value={type}
             onChange={(e) => {
               setType(e.target.value as typeof type)
               setPage(0)
             }}
-            className="input w-auto !py-2"
+            className="input min-w-0 flex-1 !py-2 sm:w-auto sm:flex-none"
           >
             <option value="all">All types</option>
             <option value="income">Income</option>
@@ -126,7 +126,7 @@ export function Transactions() {
               setCatId(e.target.value)
               setPage(0)
             }}
-            className="input w-auto !py-2"
+            className="input min-w-0 flex-1 !py-2 sm:w-auto sm:flex-none"
           >
             <option value="all">All categories</option>
             {parents.map((c) => (
@@ -135,7 +135,7 @@ export function Transactions() {
               </option>
             ))}
           </select>
-          <button onClick={() => setCreating(true)} className="btn-primary !px-3" title="Add transaction">
+          <button onClick={() => setCreating(true)} className="btn-primary !px-3 shrink-0" title="Add transaction">
             <Plus className="h-4 w-4" />
           </button>
         </div>
@@ -218,9 +218,9 @@ export function Transactions() {
                   selected={selected.has(t.id)}
                   onSelect={toggleSelect}
                 />
-                <div className="flex items-center justify-between px-12 pb-1 text-[11px] text-base-muted md:hidden">
-                  <span>{db.categories.find((c) => c.id === t.categoryId)?.name}</span>
-                  <span>
+                <div className="flex items-center justify-between gap-2 px-12 pb-1 text-[11px] text-base-muted md:hidden">
+                  <span className="min-w-0 truncate">{db.categories.find((c) => c.id === t.categoryId)?.name}</span>
+                  <span className="min-w-0 shrink-0 truncate">
                     {t.source} · {t.paymentMethodId ? db.paymentMethods.find((p) => p.id === t.paymentMethodId)?.name : '—'}
                   </span>
                 </div>
@@ -228,15 +228,18 @@ export function Transactions() {
             ))}
           </div>
           {pages > 1 && (
-            <div className="flex items-center justify-between border-t px-4 py-3">
+            <div className="flex flex-col gap-2 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <span className="text-xs text-base-muted">
                 {safePage * PAGE_SIZE + 1}–{Math.min(filtered.length, (safePage + 1) * PAGE_SIZE)} of {filtered.length}
               </span>
-              <div className="flex items-center gap-1">
+              {/* Up to 6 page buttons + prev/next can exceed a 320px screen's
+                  width — scroll the strip instead of letting it overflow the
+                  page or shrink the buttons into unreadable/untappable specks. */}
+              <div className="flex items-center gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 <button
                   disabled={safePage === 0}
                   onClick={() => setPage(safePage - 1)}
-                  className="btn-ghost !p-1.5"
+                  className="btn-ghost shrink-0 !p-2 sm:!p-1.5"
                   aria-label="Previous"
                 >
                   <ChevronLeft className="h-4 w-4" />
@@ -246,7 +249,7 @@ export function Transactions() {
                     key={i}
                     onClick={() => setPage(i)}
                     className={cn(
-                      'h-8 w-8 rounded-lg text-xs font-semibold',
+                      'h-9 w-9 shrink-0 rounded-lg text-xs font-semibold sm:h-8 sm:w-8',
                       i === safePage ? 'bg-accent text-white' : 'text-base-muted hover:bg-base/5'
                     )}
                   >
@@ -254,12 +257,12 @@ export function Transactions() {
                   </button>
                 ))}
                 {pages > pageWindow.length && pageWindow[pageWindow.length - 1] < pages - 1 && (
-                  <span className="text-xs text-base-muted">…</span>
+                  <span className="shrink-0 text-xs text-base-muted">…</span>
                 )}
                 <button
                   disabled={safePage >= pages - 1}
                   onClick={() => setPage(safePage + 1)}
-                  className="btn-ghost !p-1.5"
+                  className="btn-ghost shrink-0 !p-2 sm:!p-1.5"
                   aria-label="Next"
                 >
                   <ChevronRight className="h-4 w-4" />

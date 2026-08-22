@@ -63,8 +63,8 @@ export function Debts() {
                     </div>
                   </div>
                   <div className="flex gap-1">
-                    <button onClick={() => setEditing(d)} className="rounded-lg p-1.5 text-base-muted hover:bg-base/5"><Pencil className="h-4 w-4" /></button>
-                    <button onClick={() => setToDelete(d)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => setEditing(d)} className="rounded-lg p-2 text-base-muted hover:bg-base/5 sm:p-1.5"><Pencil className="h-4 w-4" /></button>
+                    <button onClick={() => setToDelete(d)} className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1.5"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
                 <div className="mt-4 flex items-end justify-between">

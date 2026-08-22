@@ -48,10 +48,10 @@ export function Bills() {
                   </div>
                   <div className="tabular text-lg font-bold">{money(b.amount)}</div>
                   {b.paid ? <Badge tone="positive"><Check className="h-3 w-3" /> Paid</Badge> : <Badge tone="warning">Due</Badge>}
-                  <button onClick={() => toggleBillPaid(b.id)} className="btn-secondary !py-1.5 text-xs"><Check className="h-3.5 w-3.5" /> {b.paid ? 'Mark unpaid' : 'Mark paid'}</button>
+                  <button onClick={() => toggleBillPaid(b.id)} className="btn-secondary !py-2 text-xs sm:!py-1.5"><Check className="h-3.5 w-3.5" /> {b.paid ? 'Mark unpaid' : 'Mark paid'}</button>
                   <div className="flex gap-1">
-                    <button onClick={() => setEditBill(b)} className="rounded-lg p-1.5 text-base-muted hover:bg-base/5"><Pencil className="h-4 w-4" /></button>
-                    <button onClick={() => setToDeleteBill(b)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
+                    <button onClick={() => setEditBill(b)} className="rounded-lg p-2 text-base-muted hover:bg-base/5 sm:p-1.5"><Pencil className="h-4 w-4" /></button>
+                    <button onClick={() => setToDeleteBill(b)} className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1.5"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
               )
@@ -83,8 +83,8 @@ export function Bills() {
                 </div>
                 <div className="tabular text-lg font-bold">{money(s.amount)}<span className="text-xs font-medium text-base-muted">/{s.frequency === 'monthly' ? 'mo' : 'yr'}</span></div>
                 <div className="flex gap-1">
-                  <button onClick={() => setEditSub(s)} className="rounded-lg p-1.5 text-base-muted hover:bg-base/5"><Pencil className="h-4 w-4" /></button>
-                  <button onClick={() => setToDeleteSub(s)} className="rounded-lg p-1.5 text-base-muted hover:bg-negative-soft hover:text-negative"><Trash2 className="h-4 w-4" /></button>
+                  <button onClick={() => setEditSub(s)} className="rounded-lg p-2 text-base-muted hover:bg-base/5 sm:p-1.5"><Pencil className="h-4 w-4" /></button>
+                  <button onClick={() => setToDeleteSub(s)} className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1.5"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
             ))}
