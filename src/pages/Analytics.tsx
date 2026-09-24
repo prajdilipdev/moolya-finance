@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react'
+import { useIsPhone } from '@/lib/utils'
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, LineChart, Line, PieChart, Pie, Cell, Legend, AreaChart, Area } from 'recharts'
 import { useApp } from '@/context/AppContext'
 import { usePeriod } from '@/context/PeriodContext'
@@ -22,6 +23,7 @@ function tooltipStyle() {
 }
 
 export function Analytics() {
+  const phone = useIsPhone()
   const { db } = useApp()
   const { range, key } = usePeriod()
   const [granularity, setGranularity] = useStateGranularity(key)
@@ -120,9 +122,9 @@ export function Analytics() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="page-head flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Analytics</h2>
+          <h2 className="hidden text-xl font-bold sm:block">Analytics</h2>
           <p className="text-sm text-base-muted">Trends &amp; breakdowns for the selected period</p>
         </div>
         <Segmented
@@ -153,14 +155,14 @@ export function Analytics() {
 
         <div className="card p-5">
           <h3 className="text-sm font-bold">Expenses by Category</h3>
-          <div className="mt-4 h-64">
+          <div className="mt-4 h-80 sm:h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={byCat} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2} strokeWidth={0}>
+                <Pie data={byCat} dataKey="value" nameKey="name" innerRadius={phone ? 50 : 55} outerRadius={phone ? 80 : 90} paddingAngle={2} strokeWidth={0}>
                   {byCat.map((c, i) => <Cell key={i} fill={c.color} />)}
                 </Pie>
                 <Tooltip {...tooltipStyle()} formatter={(v: number) => money(v)} />
-                <Legend layout="vertical" align="right" verticalAlign="middle" iconType="circle" wrapperStyle={{ fontSize: 12 }} formatter={(value) => <span style={{ color: isDark ? '#cbd5e1' : '#475569' }}>{value}</span>} />
+                <Legend layout={phone ? 'horizontal' : 'vertical'} align={phone ? 'center' : 'right'} verticalAlign={phone ? 'bottom' : 'middle'} iconType="circle" wrapperStyle={{ fontSize: 12 }} formatter={(value) => <span style={{ color: isDark ? '#cbd5e1' : '#475569' }}>{value}</span>} />
               </PieChart>
             </ResponsiveContainer>
           </div>

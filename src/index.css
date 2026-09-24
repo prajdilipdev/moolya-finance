@@ -257,3 +257,26 @@ body {
     animation: none;
   }
 }
+
+/* Page header row on phones: the top bar already shows the page title, and
+   the page's main action becomes a full-width, thumb-friendly button. */
+@media (max-width: 639px) {
+  .page-head > .btn-primary,
+  .page-head > .btn-secondary {
+    width: 100%;
+  }
+  .page-head > div:first-child {
+    width: 100%;
+  }
+}
+
+/* List-card action row (bills, recurring): its own full-width row under the
+   item on phones with a big primary action; inline on wider screens. */
+@layer components {
+  .item-actions {
+    @apply flex w-full items-center gap-2 border-t pt-3 sm:w-auto sm:border-0 sm:pt-0;
+  }
+  .item-actions > .item-main {
+    @apply flex-1 sm:flex-none;
+  }
+}

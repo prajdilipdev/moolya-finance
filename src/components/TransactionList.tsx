@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { Transaction, DB } from '@/lib/types'
 import { money, formatDateShort } from '@/lib/format'
 import { Icon } from './ui/Icon'
@@ -14,6 +14,7 @@ export function TransactionRow({
   selected,
   onSelect,
   compact = false,
+  selectionActive = false,
 }: {
   t: Transaction
   db: DB
@@ -22,16 +23,51 @@ export function TransactionRow({
   selected?: boolean
   onSelect?: (id: string, checked: boolean) => void
   compact?: boolean
+  /** Some row is selected — on phones, taps then toggle selection instead of opening edit. */
+  selectionActive?: boolean
 }) {
   const cat = db.categories.find((c) => c.id === t.categoryId)
   const sub = t.subcategoryId ? db.categories.find((c) => c.id === t.subcategoryId) : null
   const col = categoryColorPair(cat?.name)
 
+  // Phones: tap = edit (or toggle while selecting), long-press = start selecting.
+  // Desktop keeps the explicit checkbox and hover buttons.
+  const isPhone = () => window.matchMedia('(max-width: 639px)').matches
+  const pressTimer = useRef<number>()
+  const longPressed = useRef(false)
+  const startPress = () => {
+    if (!onSelect || !isPhone()) return
+    longPressed.current = false
+    pressTimer.current = window.setTimeout(() => {
+      longPressed.current = true
+      navigator.vibrate?.(15)
+      onSelect(t.id, !selected)
+    }, 450)
+  }
+  const cancelPress = () => window.clearTimeout(pressTimer.current)
+  const handleTap = (e: React.MouseEvent) => {
+    if (!isPhone() || (e.target as HTMLElement).closest('button, input, a')) return
+    if (longPressed.current) {
+      longPressed.current = false
+      return
+    }
+    if (selectionActive && onSelect) onSelect(t.id, !selected)
+    else onEdit?.(t)
+  }
+  const tappable = !!(onEdit || onSelect)
+
   return (
     <div
+      onClick={tappable ? handleTap : undefined}
+      onPointerDown={tappable ? startPress : undefined}
+      onPointerUp={cancelPress}
+      onPointerLeave={cancelPress}
+      onPointerCancel={cancelPress}
+      onContextMenu={(e) => onSelect && isPhone() && e.preventDefault()}
       className={cn(
-        'group flex items-center gap-3 px-3 py-2.5 transition-colors hover:bg-base/5',
-        selected && 'bg-accent-soft/40'
+        'group flex select-none items-center gap-3 px-3.5 py-3 transition-colors sm:select-auto sm:px-3 sm:py-2.5 sm:hover:bg-base/5',
+        tappable && 'cursor-pointer active:bg-base/[0.06] sm:cursor-auto sm:active:bg-transparent',
+        selected && 'bg-accent-soft/50'
       )}
     >
       {onSelect && (
@@ -39,12 +75,12 @@ export function TransactionRow({
           type="checkbox"
           checked={!!selected}
           onChange={(e) => onSelect(t.id, e.target.checked)}
-          className="h-4 w-4 rounded border-base-muted accent-emerald-500"
+          className={cn('h-5 w-5 shrink-0 rounded border-base-muted accent-emerald-600 sm:block sm:h-4 sm:w-4', selectionActive ? 'block' : 'hidden')}
           aria-label={`Select ${t.description}`}
         />
       )}
       <span
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[11px]"
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] sm:h-9 sm:w-9 sm:rounded-[11px]"
         style={{ backgroundColor: col.soft, color: col.hex }}
       >
         <Icon name={cat?.icon || 'Tag'} className="h-4 w-4" />
@@ -65,7 +101,7 @@ export function TransactionRow({
           {formatDateShort(t.transactionDate)}
         </div>
       </div>
-      <span className={cn('tabular shrink-0 text-sm font-bold', t.type === 'income' ? 'text-positive' : 'text-base')}>
+      <span className={cn('tabular shrink-0 text-[15px] font-bold sm:text-sm', t.type === 'income' ? 'text-positive' : 'text-[hsl(var(--base))]')}>
         {t.type === 'income' ? '+' : '−'}
         {money(t.amount, t.currency)}
       </span>
@@ -74,7 +110,8 @@ export function TransactionRow({
         // There's no persistent :hover on touch, so gating this on
         // group-hover from the base breakpoint made these buttons
         // effectively undiscoverable on a phone — always visible below sm.
-        <div className="flex items-center gap-1 opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+        // Phones use tap-to-edit instead; desktop reveals these on hover/focus.
+        <div className="hidden items-center gap-1 transition-opacity sm:flex sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
           {onEdit && (
             <button
               type="button"

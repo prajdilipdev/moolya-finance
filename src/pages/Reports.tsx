@@ -70,13 +70,13 @@ export function Reports() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="page-head flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Reports</h2>
+          <h2 className="hidden text-xl font-bold sm:block">Reports</h2>
           <p className="text-sm text-base-muted">Monthly summaries with export</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-xl bg-base/5 p-1">
+        <div className="grid w-full grid-cols-2 items-center gap-2 sm:flex sm:w-auto">
+          <div className="col-span-2 flex items-center justify-between gap-1 rounded-xl bg-base/5 p-1 sm:justify-start">
             <button onClick={() => setMonthOffset((o) => o - 1)} className="rounded-lg p-2 hover:bg-base/10 sm:p-1.5" aria-label="Previous month"><ChevronLeft className="h-4 w-4" /></button>
             <span className="min-w-[100px] text-center text-sm font-semibold sm:min-w-[120px]">{target.label}</span>
             <button onClick={() => setMonthOffset((o) => Math.min(o + 1, 0))} className="rounded-lg p-2 hover:bg-base/10 sm:p-1.5" aria-label="Next month"><ChevronRight className="h-4 w-4" /></button>
@@ -86,7 +86,7 @@ export function Reports() {
         </div>
       </div>
 
-      <div className="card relative overflow-hidden border-emerald-500/20 bg-[linear-gradient(145deg,#060C09,#0E1D16)] p-6 text-white shadow-[0_10px_30px_-10px_rgba(16,185,129,0.15)]">
+      <div className="relative overflow-hidden rounded-[24px] bg-[linear-gradient(150deg,#073B2A_0%,#0A5C40_55%,#0B7A55_100%)] p-5 text-white shadow-[0_18px_40px_-18px_rgba(7,59,42,0.7)] ring-1 ring-white/10 sm:p-6">
         <div
           className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full opacity-25"
           style={{ background: 'radial-gradient(circle, #10B981 0%, transparent 70%)' }}

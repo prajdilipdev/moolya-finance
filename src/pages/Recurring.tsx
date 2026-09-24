@@ -57,9 +57,9 @@ export function Recurring() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="page-head flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Recurring</h2>
+          <h2 className="hidden text-xl font-bold sm:block">Recurring</h2>
           <p className="text-sm text-base-muted">Repeating income &amp; expenses</p>
         </div>
         <button onClick={() => setEditing('new')} className="btn-primary"><Plus className="h-4 w-4" /> New recurring</button>
@@ -95,8 +95,8 @@ export function Recurring() {
                   <Icon name={cat?.icon || 'Repeat'} className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 font-semibold">
-                    {r.name}
+                  <div className="flex min-w-0 items-center gap-2 font-semibold">
+                    <span className="truncate">{r.name}</span>
                     {!r.active && <Badge>Inactive</Badge>}
                     {r.autoCreate && <Badge tone="accent">Auto</Badge>}
                   </div>
@@ -106,15 +106,17 @@ export function Recurring() {
                   </div>
                 </div>
                 <div className="tabular text-lg font-bold">{money(r.amount)}</div>
-                {r.active && (
-                  <>
-                    <button onClick={() => markPaid(r)} className="btn-secondary !py-2 text-xs sm:!py-1.5"><Check className="h-3.5 w-3.5" /> Mark paid</button>
-                    <button onClick={() => skip(r)} className="btn-ghost !py-2 text-xs sm:!py-1.5"><SkipForward className="h-3.5 w-3.5" /> Skip</button>
-                  </>
-                )}
-                <div className="flex gap-1">
-                  <button onClick={() => setEditing(r)} className="rounded-lg p-2 text-base-muted hover:bg-base/5 sm:p-1.5" aria-label="Edit"><Pencil className="h-4 w-4" /></button>
-                  <button onClick={() => setToDelete(r)} className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1.5" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
+                <div className="item-actions">
+                  {r.active && (
+                    <>
+                      <button onClick={() => markPaid(r)} className="btn-secondary item-main !py-2 text-xs sm:!py-1.5"><Check className="h-3.5 w-3.5" /> Mark paid</button>
+                      <button onClick={() => skip(r)} className="btn-ghost !py-2 text-xs sm:!py-1.5"><SkipForward className="h-3.5 w-3.5" /> Skip</button>
+                    </>
+                  )}
+                  <div className="ml-auto flex gap-1 sm:ml-0">
+                    <button onClick={() => setEditing(r)} className="rounded-lg p-2 text-base-muted hover:bg-base/5 sm:p-1.5" aria-label="Edit"><Pencil className="h-4 w-4" /></button>
+                    <button onClick={() => setToDelete(r)} className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1.5" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
+                  </div>
                 </div>
               </div>
             )

@@ -217,13 +217,8 @@ export function Transactions() {
                   }
                   selected={selected.has(t.id)}
                   onSelect={toggleSelect}
+                  selectionActive={selected.size > 0}
                 />
-                <div className="flex items-center justify-between gap-2 px-12 pb-1 text-[11px] text-base-muted md:hidden">
-                  <span className="min-w-0 truncate">{db.categories.find((c) => c.id === t.categoryId)?.name}</span>
-                  <span className="min-w-0 shrink-0 truncate">
-                    {t.source} · {t.paymentMethodId ? db.paymentMethods.find((p) => p.id === t.paymentMethodId)?.name : '—'}
-                  </span>
-                </div>
               </div>
             ))}
           </div>

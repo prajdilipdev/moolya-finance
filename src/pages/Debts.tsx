@@ -4,7 +4,7 @@ import { useApp } from '@/context/AppContext'
 import { Debt, Frequency } from '@/lib/types'
 import { Modal } from '@/components/ui/Modal'
 import { Field, Progress, EmptyState } from '@/components/ui/Misc'
-import { money, todayISO, pct } from '@/lib/format'
+import { money, todayISO, pct, formatDate } from '@/lib/format'
 import { cn } from '@/lib/utils'
 
 export function Debts() {
@@ -19,9 +19,9 @@ export function Debts() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="page-head flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Debts &amp; EMI</h2>
+          <h2 className="hidden text-xl font-bold sm:block">Debts &amp; EMI</h2>
           <p className="text-sm text-base-muted">Track loans, credit cards and EMIs</p>
         </div>
         <button onClick={() => setEditing('new')} className="btn-primary"><Plus className="h-4 w-4" /> New debt</button>
@@ -72,9 +72,9 @@ export function Debts() {
                   <div className="tabular text-sm text-base-muted">of {money(d.originalBalance)}</div>
                 </div>
                 <div className="mt-2"><Progress value={progress} tone="positive" /></div>
-                <div className="mt-2 flex items-center justify-between text-sm">
-                  <span className="tabular font-semibold text-positive">{Math.round(progress)}% paid</span>
-                  <span className="flex items-center gap-1 text-base-muted"><TrendingDown className="h-3.5 w-3.5" /> Payment {money(d.paymentAmount)}{d.dueDate ? ` · due ${d.dueDate}` : ''}</span>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
+                  <span className="tabular whitespace-nowrap font-semibold text-positive">{Math.round(progress)}% paid</span>
+                  <span className="flex min-w-0 items-center gap-1 text-xs text-base-muted sm:text-sm"><TrendingDown className="h-3.5 w-3.5 shrink-0" /> <span className="whitespace-nowrap">{money(d.paymentAmount)}/payment</span>{d.dueDate && <span className="whitespace-nowrap">· due {formatDate(d.dueDate)}</span>}</span>
                 </div>
               </div>
             )

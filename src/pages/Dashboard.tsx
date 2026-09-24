@@ -114,15 +114,15 @@ export function Dashboard() {
                 shrinking to fit. truncate is the fallback if it still doesn't fit. */}
             <div className="min-w-0 rounded-[13px] bg-white/[0.07] p-2.5 ring-1 ring-white/10 sm:p-3">
               <div className="flex items-center gap-1 text-xs text-white/60"><ArrowUpRight className="h-3.5 w-3.5 shrink-0 text-emerald-300" /> Income</div>
-              <div className="tabular mt-1 truncate text-base font-bold text-emerald-300 sm:text-lg"><AnimatedNumber value={totals.income} /></div>
+              <div className="tabular mt-1 truncate text-md font-bold text-emerald-300 sm:text-lg"><AnimatedNumber value={totals.income} /></div>
             </div>
             <div className="min-w-0 rounded-[13px] bg-white/[0.07] p-2.5 ring-1 ring-white/10 sm:p-3">
               <div className="flex items-center gap-1 text-xs text-white/60"><ArrowDownRight className="h-3.5 w-3.5 shrink-0 text-red-300" /> Expenses</div>
-              <div className="tabular mt-1 truncate text-base font-bold text-red-300 sm:text-lg"><AnimatedNumber value={totals.expenses} /></div>
+              <div className="tabular mt-1 truncate text-md font-bold text-red-300 sm:text-lg"><AnimatedNumber value={totals.expenses} /></div>
             </div>
             <div className="min-w-0 rounded-[13px] bg-white/[0.07] p-2.5 ring-1 ring-white/10 sm:p-3">
               <div className="flex items-center gap-1 text-xs text-white/60"><PiggyBank className="h-3.5 w-3.5 shrink-0 text-sky-300" /> Savings</div>
-              <div className="tabular mt-1 truncate text-base font-bold text-sky-300 sm:text-lg"><AnimatedNumber value={totals.savings} /></div>
+              <div className="tabular mt-1 truncate text-md font-bold text-sky-300 sm:text-lg"><AnimatedNumber value={totals.savings} /></div>
             </div>
           </div>
         </motion.div>
@@ -184,7 +184,7 @@ export function Dashboard() {
         {budget && (
           <div className="card p-5">
             <h3 className="flex items-center gap-2 text-sm font-bold"><Wallet className="h-4 w-4 text-accent" /> Daily Spending Limit</h3>
-            <div className="tabular mt-3 text-3xl font-extrabold">{money(limit.perDay)}<span className="text-base text-base-muted">/day</span></div>
+            <div className="tabular mt-3 text-3xl font-extrabold">{money(limit.perDay)}<span className="text-md text-base-muted">/day</span></div>
             <p className="mt-1 text-xs text-base-muted">Remaining budget {money(Math.max(budget.remaining, 0))} across {limit.daysLeft} days. A calculated guideline, not financial advice.</p>
             <div className="mt-3">
               <div className="mb-1 flex justify-between text-xs text-base-muted"><span>Overall budget</span><span>{Math.round(budget.usedPct)}% used</span></div>

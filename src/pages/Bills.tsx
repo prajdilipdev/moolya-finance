@@ -23,9 +23,9 @@ export function Bills() {
   return (
     <div className="space-y-6">
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="page-head flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h2 className="text-xl font-bold">Bills</h2>
+            <h2 className="hidden text-xl font-bold sm:block">Bills</h2>
             <p className="text-sm text-base-muted">Track upcoming payments</p>
           </div>
           <button onClick={() => setEditBill('new')} className="btn-primary"><Plus className="h-4 w-4" /> New bill</button>
@@ -43,15 +43,17 @@ export function Bills() {
                     <Icon name={cat?.icon || 'FileText'} className="h-5 w-5" />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="font-semibold">{b.name}</div>
+                    <div className="truncate font-semibold">{b.name}</div>
                     <div className="text-xs text-base-muted">Due {formatDate(b.dueDate)}{overdue && <span className="ml-1 font-semibold text-negative">· overdue</span>} · {b.recurrence}</div>
                   </div>
                   <div className="tabular text-lg font-bold">{money(b.amount)}</div>
-                  {b.paid ? <Badge tone="positive"><Check className="h-3 w-3" /> Paid</Badge> : <Badge tone="warning">Due</Badge>}
-                  <button onClick={() => toggleBillPaid(b.id)} className="btn-secondary !py-2 text-xs sm:!py-1.5"><Check className="h-3.5 w-3.5" /> {b.paid ? 'Mark unpaid' : 'Mark paid'}</button>
-                  <div className="flex gap-1">
-                    <button onClick={() => setEditBill(b)} className="rounded-lg p-2 text-base-muted hover:bg-base/5 sm:p-1.5"><Pencil className="h-4 w-4" /></button>
-                    <button onClick={() => setToDeleteBill(b)} className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1.5"><Trash2 className="h-4 w-4" /></button>
+                  <div className="item-actions">
+                    {b.paid ? <Badge tone="positive"><Check className="h-3 w-3" /> Paid</Badge> : <Badge tone="warning">Due</Badge>}
+                    <button onClick={() => toggleBillPaid(b.id)} className="btn-secondary item-main !py-2 text-xs sm:!py-1.5"><Check className="h-3.5 w-3.5" /> {b.paid ? 'Mark unpaid' : 'Mark paid'}</button>
+                    <div className="flex gap-1">
+                      <button onClick={() => setEditBill(b)} className="rounded-lg p-2 text-base-muted hover:bg-base/5 sm:p-1.5" aria-label="Edit"><Pencil className="h-4 w-4" /></button>
+                      <button onClick={() => setToDeleteBill(b)} className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1.5" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
+                    </div>
                   </div>
                 </div>
               )
@@ -61,7 +63,7 @@ export function Bills() {
       </div>
 
       <div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="page-head flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-xl font-bold"><Repeat className="h-5 w-5 text-accent" /> Subscriptions</h2>
             <p className="text-sm text-base-muted">
@@ -78,7 +80,7 @@ export function Bills() {
               <div key={s.id} className={cn('card flex flex-wrap items-center gap-3 p-4', !s.active && 'opacity-50')}>
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent-soft"><CreditCard className="h-5 w-5 text-accent" /></span>
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2 font-semibold">{s.name}{!s.active && <Badge>Paused</Badge>}</div>
+                  <div className="flex min-w-0 items-center gap-2 font-semibold"><span className="truncate">{s.name}</span>{!s.active && <Badge>Paused</Badge>}</div>
                   <div className="text-xs text-base-muted">{s.frequency}{s.nextBilling ? ` · next ${formatDate(s.nextBilling)}` : ''}</div>
                 </div>
                 <div className="tabular text-lg font-bold">{money(s.amount)}<span className="text-xs font-medium text-base-muted">/{s.frequency === 'monthly' ? 'mo' : 'yr'}</span></div>

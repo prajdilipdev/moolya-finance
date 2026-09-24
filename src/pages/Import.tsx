@@ -267,9 +267,9 @@ export function Import() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="page-head flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Import Transactions</h2>
+          <h2 className="hidden text-xl font-bold sm:block">Import Transactions</h2>
           <p className="text-sm text-base-muted">
             Import statements from any Indian bank with auto-categorization and UPI cleaning
           </p>
@@ -295,7 +295,7 @@ export function Import() {
             <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#050A07,#0F2B1D)] text-emerald-400 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
               {loading ? <Loader2 className="h-7 w-7 animate-spin" /> : <Building2 className="h-7 w-7" />}
             </div>
-            <h3 className="text-base font-bold">Upload Bank Statement</h3>
+            <h3 className="text-md font-bold">Upload Bank Statement</h3>
             <p className="mt-1 text-sm text-base-muted max-w-md">
               Drag & drop or click to upload your <span className="font-semibold text-base">PDF, Excel (.xlsx, .xls), or CSV</span> statement.
             </p>
@@ -372,7 +372,7 @@ export function Import() {
               />
               {looksLikeCSV(text) && <Badge tone="accent">CSV detected</Badge>}
             </div>
-            <button onClick={analyzeText} className="btn-primary">
+            <button onClick={analyzeText} className="btn-primary w-full sm:w-auto">
               <Sparkles className="h-4 w-4" /> Analyze &amp; preview
             </button>
           </div>
@@ -612,7 +612,7 @@ export function Import() {
                 <Lock className="h-5 w-5" />
               </div>
               <div>
-                <h3 className="text-base font-bold">PDF is Password-Protected</h3>
+                <h3 className="text-md font-bold">PDF is Password-Protected</h3>
                 <p className="text-xs text-base-muted">Your bank locked this statement</p>
               </div>
             </div>

@@ -69,7 +69,7 @@ export function Settings() {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-bold">Settings</h2>
+        <h2 className="hidden text-xl font-bold sm:block">Settings</h2>
         <p className="text-sm text-base-muted">Manage your preferences and data</p>
       </div>
       <Segmented options={tabs} value={tab} onChange={setTab} />
@@ -91,7 +91,7 @@ export function Settings() {
                   placeholder="e.g. 372.08"
                 />
               </Field>
-              <button onClick={flash} className="btn-primary"><Save className="h-4 w-4" /> Save changes {saved && <Check className="h-4 w-4" />}</button>
+              <button onClick={flash} className="btn-primary w-full sm:w-auto"><Save className="h-4 w-4" /> Save changes {saved && <Check className="h-4 w-4" />}</button>
             </div>
           </div>
 
@@ -143,7 +143,7 @@ export function Settings() {
           {auth.enabled && auth.user && (
             <div className="card p-5">
               <h3 className="mb-3 text-sm font-bold">Sign-in Account</h3>
-              <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="page-head flex flex-wrap items-center justify-between gap-3">
                 <div className="min-w-0">
                   <div className="truncate text-sm font-semibold">{auth.user.email}</div>
                   <div className="text-xs text-base-muted">Authenticated with Supabase</div>

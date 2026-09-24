@@ -60,23 +60,23 @@ export function FilterableFlow({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className={cn('card p-5', tone === 'positive' ? 'bg-positive-soft/40' : 'bg-negative-soft/40')}>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <div className={cn('card col-span-2 min-w-0 p-4 sm:col-span-1 sm:p-5', tone === 'positive' ? 'bg-positive-soft/40' : 'bg-negative-soft/40')}>
           <div className="text-xs font-semibold uppercase tracking-wide text-base-muted">Total {title}</div>
           <div className={cn('tabular mt-1 text-3xl font-extrabold', tone === 'positive' ? 'text-positive' : 'text-negative')}>{money(total)}</div>
           <div className="mt-1 text-xs text-base-muted">{txs.length} transactions</div>
         </div>
-        <div className="card p-5">
-          <div className="text-xs font-semibold uppercase tracking-wide text-base-muted">Largest source</div>
-          <div className="mt-1 flex items-center gap-2 text-lg font-bold">
-            <Icon name={largest?.icon || 'Tag'} className={cn('h-5 w-5', tone === 'positive' ? 'text-positive' : 'text-negative')} />
-            {largest?.name || '—'}
+        <div className="card min-w-0 p-4 sm:p-5">
+          <div className="truncate text-xs font-semibold uppercase tracking-wide text-base-muted">Largest source</div>
+          <div className="mt-1 flex min-w-0 items-center gap-2 text-md font-bold sm:text-lg">
+            <Icon name={largest?.icon || 'Tag'} className={cn('h-5 w-5 shrink-0', tone === 'positive' ? 'text-positive' : 'text-negative')} />
+            <span className="truncate">{largest?.name || '—'}</span>
           </div>
           <div className="tabular mt-1 text-xs text-base-muted">{largest ? money(largest.amount) : ''}</div>
         </div>
-        <div className="card p-5">
-          <div className="text-xs font-semibold uppercase tracking-wide text-base-muted">Average per {txs.length ? 'day' : 'period'}</div>
-          <div className="tabular mt-1 text-3xl font-extrabold">{money(total / Math.max(new Set(txs.map((t) => t.transactionDate)).size, 1))}</div>
+        <div className="card min-w-0 p-4 sm:p-5">
+          <div className="truncate text-xs font-semibold uppercase tracking-wide text-base-muted">Avg per {txs.length ? 'day' : 'period'}</div>
+          <div className="tabular mt-1 truncate text-lg font-extrabold sm:text-3xl">{money(total / Math.max(new Set(txs.map((t) => t.transactionDate)).size, 1))}</div>
           <div className="mt-1 text-xs text-base-muted">across active days</div>
         </div>
       </div>

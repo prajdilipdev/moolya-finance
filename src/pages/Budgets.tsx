@@ -26,9 +26,9 @@ export function Budgets() {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="page-head flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold">Budgets</h2>
+          <h2 className="hidden text-xl font-bold sm:block">Budgets</h2>
           <p className="text-sm text-base-muted">Track spending against monthly budgets</p>
         </div>
         <button onClick={() => setEditing('new')} className="btn-primary"><Plus className="h-4 w-4" /> New budget</button>

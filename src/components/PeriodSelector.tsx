@@ -35,7 +35,7 @@ export function PeriodSelector() {
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen((o) => !o)} className="btn-secondary !py-2 text-sm" aria-expanded={open}>
+      <button onClick={() => setOpen((o) => !o)} className="btn-secondary !min-h-[40px] whitespace-nowrap !px-3 !py-2 text-sm" aria-expanded={open}>
         <Calendar className="h-4 w-4" />
         {key === 'custom' ? `${custom.start} → ${custom.end}` : current}
       </button>
