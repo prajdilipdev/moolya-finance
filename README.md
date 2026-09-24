@@ -216,3 +216,5 @@ Moolya is designed as your private tool. Financial-health and projection numbers
 ## License
 
 Private / personal use.
+#   m o o l y a - f i n a n c e  
+ 
