@@ -19,6 +19,21 @@ type Mode = 'auto' | TransactionType
  * guessed as Income/Gifts while Expense is selected) no longer fits, so it
  * falls back to that side's catch-all.
  */
+/**
+ * Free models occasionally invent a label ("70rs sandwich" → "Sandip purchase").
+ * If the AI description shares no word with what was typed, keep the local
+ * parser's description — the category and amount from the AI still apply.
+ */
+function keepUserWording(ai: ParsedTransaction[], local: ParsedTransaction[]): ParsedTransaction[] {
+  if (ai.length !== local.length) return ai
+  const words = (s: string) => new Set(s.toLowerCase().match(/[a-z]{3,}/g) ?? [])
+  return ai.map((p, i) => {
+    const typed = words(local[i].description)
+    const overlap = [...words(p.description)].some((w) => [...typed].some((t) => t.startsWith(w.slice(0, 4)) || w.startsWith(t.slice(0, 4))))
+    return overlap || typed.size === 0 ? p : { ...p, description: local[i].description }
+  })
+}
+
 function applyMode(p: ParsedTransaction, mode: Mode): ParsedTransaction {
   if (mode === 'auto') return p
   if (mode === 'expense' && p.category === 'Income') return { ...p, type: 'expense', category: 'Other', subcategory: null }
@@ -136,7 +151,7 @@ export function QuickAdd({
     if (worthAsking) {
       const ai = await parseWithAI(text, db.categories, forced)
       if (ai && ai.length > 0) {
-        executeSave(ai.map((p) => applyMode(p, mode)))
+        executeSave(keepUserWording(ai, parsed).map((p) => applyMode(p, mode)))
         return
       }
       if (parsed.length === 0) {

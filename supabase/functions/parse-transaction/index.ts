@@ -115,9 +115,9 @@ Rules:
 ${forcedType
     ? `- The user explicitly marked this as ${forcedType}. type MUST be "${forcedType}" for every entry, and category must be one that fits ${forcedType}.`
     : `- type is "income" only for money received (salary, refund, cashback, client payment); everything else is "expense".`}
-- Categorise by what the item actually IS, using your knowledge of Indian food, brands and services. Always choose the most specific subcategory that fits. Examples: "pani poori", "vada pav", "momos", "chai" → Food / Street Food; "chips", "biscuits", "chocolate", "cold drink" → Food / Snacks; "swiggy", "zomato", restaurant meals → Food / Dining Out; "sabzi", "atta", "milk" → Food / Groceries; "rapido", "ola" → Transportation / Cab; "jio recharge" → Bills / Mobile.
+- Categorise by what the item actually IS, using your knowledge of Indian food, brands and services. Always choose the most specific subcategory that fits. Examples: "pani poori", "vada pav", "momos", "chai" → Food / Street Food; "chips", "biscuits", "chocolate", "cold drink" → Food / Snacks; "swiggy", "zomato", restaurant meals → Food / Dining Out; "sabzi", "atta", "milk" → Food / Groceries; "rapido", "ola" → Transportation / Cab; "tyre puncture", "bike service" → Transportation / Vehicle Maintenance; "jio recharge" → Bills / Mobile; "claude sub", "icloud", "netflix" → Subscriptions.
 - Use "Other" only when the item truly fits no category.
-- description is a short human label, not the raw sentence.
+- description is a short label built ONLY from words in the note (fix obvious spelling, add a word like "Subscription" or "Repair" if implied). Never invent names, people or brands that are not in the note.
 - date is null unless the note states or implies one.
 - confidence is 0-1: how sure you are of amount and type.
 - If you cannot find an amount, return {"transactions":[]}.`

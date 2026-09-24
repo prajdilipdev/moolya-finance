@@ -12,6 +12,7 @@ export const CATEGORY_ICONS: Record<string, string> = {
   Cab: 'CarTaxiFront',
   Train: 'TrainFront',
   Public: 'Bus',
+  'Vehicle Maintenance': 'Wrench',
   Housing: 'Home',
   Rent: 'House',
   'Home Maintenance': 'Wrench',
@@ -83,6 +84,7 @@ export function defaultCategories(): Category[] {
   add('Cab', E, 'Transportation', 'CarTaxiFront')
   add('Train', E, 'Transportation', 'TrainFront')
   add('Public', E, 'Transportation', 'Bus')
+  add('Vehicle Maintenance', E, 'Transportation', 'Wrench')
   add('Rent', E, 'Housing', 'House')
   add('Home Maintenance', E, 'Housing', 'Wrench')
   add('Electricity', E, 'Utilities', 'PlugZap')
@@ -130,6 +132,7 @@ const RULES: Array<[RegExp, string, string | null, number]> = [
   [/veg|vegetable|vegetables|milk|bread|dairy|grocery|groceries|grocer|kirana|provision|ration|egg|fruits|fruit|onion|rice|daal|dal/i, 'Food', 'Groceries', 0.85],
   [/swiggy|zomato|restaurant|food delivery|dominos|mcdonalds|pizza|burger/i, 'Food', 'Dining Out', 0.85],
   [/\bfood\b|meal|lunch|dinner|breakfast|snack|tiffin|biryani|thali/i, 'Food', null, 0.7],
+  [/tyre|tire|puncture|mechanic|garage|car service|bike service|servicing|car wash|bike wash|oil change|wheel alignment|battery replace/i, 'Transportation', 'Vehicle Maintenance', 0.85],
   [/petrol|diesel|fuel|indian oil|hp petrol|bharat petrol/i, 'Transportation', 'Fuel', 0.9],
   [/uber|ola|rapido|taxi|\bcab\b/i, 'Transportation', 'Cab', 0.9],
   [/train|rail|irctc|metro|\bbus pass\b/i, 'Transportation', 'Train', 0.85],
@@ -146,7 +149,7 @@ const RULES: Array<[RegExp, string, string | null, number]> = [
   [/school|college|course|class|tuition|fees|books?|education/i, 'Education', null, 0.8],
   [/movie|cinema|concert|gaming|theatre|hotstar/i, 'Entertainment', null, 0.8],
   [/hotel|flight|\bair\b|trip|vacation|holiday|travel/i, 'Travel', null, 0.8],
-  [/subscription|netflix|spotify|youtube premium|\bprime\b|icloud|google one|crm|\bsoftware\b/i, 'Subscriptions', null, 0.85],
+  [/subscription|subs?|claude|chatgpt|openai|gemini|perplexity|copilot|cursor|midjourney|netflix|spotify|youtube premium|\bprime\b|icloud|google one|crm|\bsoftware\b/i, 'Subscriptions', null, 0.85],
   [/emi|\bloan\b|credit card|\bdebit\b|repayment|instalment/i, 'Debt & EMI', null, 0.85],
   [/salon|barber|\bgym\b|haircut|spa|grooming|personal care/i, 'Personal Care', null, 0.8],
   [/salary|\bsal\b|wage|payout|monthly pay/i, 'Income', 'Salary', 0.99],
@@ -203,7 +206,7 @@ export function categoryIcon(id: string | null, categories: Category[]): string 
 // series. Soft backgrounds are derived via alpha in components.
 const CAT_COLORS: Record<string, string> = {
   Food: '#D97706', 'Street Food': '#D97706', Snacks: '#EA580C', Groceries: '#F59E0B', 'Dining Out': '#FB923C',
-  Transportation: '#2563EB', Fuel: '#3B82F6', Cab: '#60A5FA', Train: '#1D4ED8', Public: '#93C5FD',
+  Transportation: '#2563EB', Fuel: '#3B82F6', Cab: '#60A5FA', Train: '#1D4ED8', Public: '#93C5FD', 'Vehicle Maintenance': '#1E40AF',
   Housing: '#475569', Rent: '#64748B', 'Home Maintenance': '#94A3B8',
   Utilities: '#0D9488', Electricity: '#14B8A6', Water: '#22D3EE', Gas: '#2DD4BF',
   Bills: '#D97706', Mobile: '#F59E0B', Internet: '#FB923C',
