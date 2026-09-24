@@ -66,7 +66,7 @@ export function Reports() {
     downloadFile(`transactions-${target.key}.csv`, [header.join(','), ...rows].join('\n'), 'text/csv')
   }
 
-  const exportJSON = () => downloadFile('aavishkar-backup.json', backupJSON(), 'application/json')
+  const exportJSON = () => downloadFile('moolya-backup.json', backupJSON(), 'application/json')
 
   return (
     <div className="space-y-4">

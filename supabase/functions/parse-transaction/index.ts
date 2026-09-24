@@ -15,7 +15,7 @@
 // Deploy:
 //   supabase functions deploy parse-transaction
 //   supabase secrets set OPENROUTER_API_KEY=sk-or-v1-...
-//   supabase secrets set OPENROUTER_MODEL=anthropic/claude-opus-5   # optional
+//   supabase secrets set OPENROUTER_MODEL=openrouter/free   # optional (default)
 //
 // Request:  { text: string, categories: { name: string, subs: string[] }[] }
 // Response: { transactions: ParsedTransaction[] }  |  { error: string }
@@ -23,7 +23,7 @@
 import { withSupabase } from 'npm:@supabase/server'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const DEFAULT_MODEL = 'anthropic/claude-opus-5'
+const DEFAULT_MODEL = 'openrouter/free'
 const MAX_INPUT_CHARS = 2000
 const MAX_TRANSACTIONS = 25
 
@@ -147,7 +147,7 @@ export default {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
-          'X-Title': 'Aavishkar Finance',
+          'X-Title': 'Moolya Finance',
         },
         body: JSON.stringify({
           model: Deno.env.get('OPENROUTER_MODEL') ?? DEFAULT_MODEL,

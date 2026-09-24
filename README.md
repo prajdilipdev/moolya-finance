@@ -1,4 +1,4 @@
-# Aavishkar · Private Personal Finance
+# Moolya · Private Personal Finance
 
 A premium, single-user personal finance **command center** built for one person managing their own money every day.
 
@@ -184,10 +184,10 @@ supabase secrets set OPENROUTER_API_KEY=sk-or-v1-your-key-here
 
 Auth is enforced twice over on purpose: the platform validates the JWT before the handler runs (`verify_jwt` defaults to true — leave it on), and `auth: 'user'` re-checks the claims inside.
 
-The model defaults to `anthropic/claude-opus-5` and is overridable — set `OPENROUTER_MODEL` to any id from [openrouter.ai/models](https://openrouter.ai/models) if you want a cheaper or different one:
+The model defaults to `openrouter/free` (OpenRouter's free-model router) and is overridable — set `OPENROUTER_MODEL` to any id from [openrouter.ai/models](https://openrouter.ai/models) if you want a cheaper or different one:
 
 ```bash
-supabase secrets set OPENROUTER_MODEL=anthropic/claude-haiku-4.5
+supabase secrets set OPENROUTER_MODEL=openrouter/free
 ```
 
 Skip the deploy and nothing breaks: `parseWithAI` fails soft and the local parser stays in charge.
@@ -211,7 +211,7 @@ Skip the deploy and nothing breaks: `parseWithAI` fails soft and the local parse
 
 ## Privacy note
 
-Aavishkar is designed as your private tool. Financial-health and projection numbers are **application-generated indicators/estimates, not professional financial advice.**
+Moolya is designed as your private tool. Financial-health and projection numbers are **application-generated indicators/estimates, not professional financial advice.**
 
 ## License
 

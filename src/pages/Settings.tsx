@@ -255,7 +255,7 @@ export function Settings() {
         <div className="max-w-lg card p-5">
           <h3 className="mb-2 text-sm font-bold">AI &amp; Smart Parser</h3>
           <p className="mb-4 text-sm text-base-muted">
-            Aavishkar uses a fast local parser by default for common formats (e.g. <code className="rounded bg-base/5 px-1">200rs pav bhaji</code>, <code className="rounded bg-base/5 px-1">25k salary</code>). For complex sentences it can use your own AI provider — configured server-side only.
+            Moolya uses a fast local parser by default for common formats (e.g. <code className="rounded bg-base/5 px-1">200rs pav bhaji</code>, <code className="rounded bg-base/5 px-1">25k salary</code>). For complex sentences it can use your own AI provider — configured server-side only.
           </p>
           <div className="space-y-2 rounded-xl bg-base/5 p-4 text-sm">
             <div><code className="font-mono text-xs">AI_PROVIDER=openai</code></div>
@@ -271,7 +271,7 @@ export function Settings() {
           <div className="card p-5">
             <h3 className="mb-3 text-sm font-bold">Backup &amp; restore</h3>
             <div className="space-y-2">
-              <button onClick={() => downloadFile('aavishkar-backup.json', backupJSON(), 'application/json')} className="btn-secondary w-full"><Download className="h-4 w-4" /> Export full backup (JSON)</button>
+              <button onClick={() => downloadFile('moolya-backup.json', backupJSON(), 'application/json')} className="btn-secondary w-full"><Download className="h-4 w-4" /> Export full backup (JSON)</button>
               <button onClick={() => fileRef.current?.click()} className="btn-secondary w-full"><Upload className="h-4 w-4" /> Restore from backup</button>
               <input ref={fileRef} type="file" accept=".json,application/json" className="hidden" onChange={(e) => e.target.files?.[0] && doRestore(e.target.files[0])} />
             </div>

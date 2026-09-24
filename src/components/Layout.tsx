@@ -1,3 +1,4 @@
+import { MoolyaLogo } from './MoolyaLogo'
 import React, { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
@@ -131,11 +132,9 @@ export function Layout() {
       {/* Desktop sidebar */}
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-60 flex-col border-r bg-card lg:flex">
         <div className="flex items-center gap-2.5 px-5 py-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-[linear-gradient(135deg,#050A07,#0F2B1D)] text-emerald-400 border border-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
-            <Sparkles className="h-5 w-5" />
-          </div>
+          <MoolyaLogo className="h-9 w-9 shadow-[0_0_18px_rgba(16,185,129,0.18)] rounded-[10px]" />
           <div>
-            <div className="text-[15px] font-extrabold tracking-tight text-base">Aavishkar</div>
+            <div className="text-[15px] font-extrabold tracking-tight text-base">Moolya</div>
             <div className="text-[11px] text-base-muted">Personal Finance</div>
           </div>
         </div>
@@ -186,9 +185,7 @@ export function Layout() {
       <div className="lg:pl-60">
         <header className="sticky top-0 z-10 flex items-center gap-3 border-b bg-[hsl(var(--bg)/0.82)] px-4 py-3 backdrop-blur-md sm:px-6">
           <div className="flex items-center gap-2 lg:hidden">
-            <div className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[linear-gradient(135deg,#050A07,#0F2B1D)] text-emerald-400 border border-emerald-500/20">
-              <Sparkles className="h-4 w-4" />
-            </div>
+            <MoolyaLogo className="h-8 w-8 shadow-[0_0_18px_rgba(16,185,129,0.18)] rounded-[10px]" />
           </div>
           <h1 className="hidden text-lg font-bold tracking-tight sm:block">{pageTitle}</h1>
           <div className="ml-auto flex items-center gap-2">

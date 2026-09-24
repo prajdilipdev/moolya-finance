@@ -1,4 +1,4 @@
-# AI Handoff — Aavishkar Personal Finance
+# AI Handoff — Moolya Personal Finance
 
 > Written by an outgoing Claude session as its context window filled up. Verified
 > against the actual repository (git log, git status, and direct file reads) at
@@ -11,7 +11,7 @@
 
 ## 1. Project overview
 
-**What it is:** "Aavishkar" — a private, single-user personal finance / expense
+**What it is:** "Moolya" — a private, single-user personal finance / expense
 tracker web app, oriented at Indian users (₹ INR, UPI narration parsing, Indian
 bank statement formats, "2k"/"1.5 lakh" style amount shorthand). Local-first by
 design: it works fully offline with zero backend, and Supabase (auth + Postgres

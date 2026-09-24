@@ -51,7 +51,7 @@ export function SetupChecklist() {
     <div className="card p-5">
       <div className="flex items-center justify-between">
         <h3 className="flex items-center gap-2 text-sm font-bold">
-          <Sparkles className="h-4 w-4 text-accent" /> Get the most out of Aavishkar
+          <Sparkles className="h-4 w-4 text-accent" /> Get the most out of Moolya
         </h3>
         <button onClick={dismiss} className="rounded-lg p-1.5 text-muted hover:bg-base/5 hover:text-base" aria-label="Dismiss">
           <X className="h-4 w-4" />

@@ -65,7 +65,7 @@ export function Onboarding() {
     })
   }
 
-  const title = ['Welcome to Aavishkar', 'Set your monthly income', 'Set a monthly budget'][Math.min(step, 2)]
+  const title = ['Welcome to Moolya', 'Set your monthly income', 'Set a monthly budget'][Math.min(step, 2)]
 
   return (
     <Modal open onClose={() => finish(true)} title={title} size="sm">

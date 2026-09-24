@@ -1,5 +1,5 @@
 -- =============================================================================
--- Aavishkar · Private Personal Finance — Supabase schema + Row Level Security
+-- Moolya · Private Personal Finance — Supabase schema + Row Level Security
 -- Run this in the Supabase SQL editor (Dashboard → SQL → New query).
 -- This is safe to run repeatedly.
 -- =============================================================================

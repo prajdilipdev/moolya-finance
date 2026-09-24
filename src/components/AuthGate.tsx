@@ -1,3 +1,4 @@
+import { MoolyaLogo } from './MoolyaLogo'
 import React, { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Sparkles, Loader2, Mail, Lock, ArrowRight, AlertTriangle, CheckCircle2, ShieldCheck, User } from 'lucide-react'
@@ -81,10 +82,8 @@ function AuthScreen() {
         className="w-full max-w-sm"
       >
         <div className="mb-6 flex flex-col items-center text-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-[14px] bg-[linear-gradient(135deg,#050A07,#0F2B1D)] text-emerald-400 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
-            <Sparkles className="h-6 w-6" />
-          </div>
-          <h1 className="text-xl font-extrabold tracking-tight">Aavishkar</h1>
+          <MoolyaLogo className="mb-3 h-12 w-12 shadow-[0_0_18px_rgba(16,185,129,0.18)] rounded-[10px]" />
+          <h1 className="text-xl font-extrabold tracking-tight">Moolya</h1>
           <p className="mt-1 text-sm text-base-muted">
             {mode === 'signup' ? 'Create your account' : mode === 'reset' ? 'Reset your password' : 'Sign in to your finances'}
           </p>
