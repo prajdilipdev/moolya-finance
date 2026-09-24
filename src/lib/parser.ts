@@ -335,7 +335,8 @@ export function parseLine(
   // remove common leading verbs / pronouns
   description = description
     .replace(/^i\s+(?:spent|paid|bought|purchased|got|received|earned|made)\s+/i, '')
-    .replace(/^(spent|spent on|paid|paid for|bought|purchased|got|received|earned|on|for|in|from)\s+/i, '')
+    .replace(/^(spent|spent on|paid|paid for|bought|purchased|got|received|earned|gave|given|sent|on|for|in|from)\s+/i, '')
+    .replace(/\s{2,}/g, ' ')
     .trim()
   if (!description) {
     // try to derive from category

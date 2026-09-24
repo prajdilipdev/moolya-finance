@@ -32,7 +32,8 @@ const MODELS = [
   'inclusionai/ling-3.0-flash-sante:free',
   'nex-agi/nex-n2.5-mini:free',
 ]
-const MODEL_TIMEOUT_MS = 12_000
+// Free models are either fast (~2s) or stuck in a queue; move on quickly.
+const MODEL_TIMEOUT_MS = 6_000
 const MAX_INPUT_CHARS = 2000
 const MAX_TRANSACTIONS = 25
 
@@ -56,7 +57,42 @@ interface ParsedTransaction {
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/
 
 /** Strict validation: the model's output is untrusted input, not a result. */
-function validate(raw: unknown, allowed: Map<string, Set<string>>): ParsedTransaction | null {
+// Generic words a label may add even though the note didn't say them.
+const LABEL_HELPERS = new Set([
+  'payment', 'gift', 'subscription', 'repair', 'delivery', 'grocery', 'groceries', 'bill', 'fee', 'fees',
+  'recharge', 'purchase', 'order', 'refund', 'service', 'ride', 'charges', 'tip', 'salary', 'rent',
+  'items', 'and', 'of', 'for', 'to', 'the', 'at', 'from', '&',
+])
+const LEADING_VERBS = /^(gave|give|paid|pay|bought|buy|spent|spend|got|sent|send|transferred)\s+/i
+
+/**
+ * Free models sometimes mangle or invent words ("gave watchman" → "Agave
+ * Watchman"). Keep only words that appear in the user's note (allowing for
+ * spelling fixes), plus a few generic helper words.
+ */
+function cleanLabel(label: string, note: string): string {
+  const noteWords = note.toLowerCase().match(/[a-z0-9]+/g) ?? []
+  const inNote = (w: string) => {
+    const lw = w.toLowerCase()
+    // Same word, or a spelling fix sharing its first 4 letters (5 for longer words).
+    return noteWords.some((n) => {
+      if (n === lw) return true
+      const k = Math.min(n.length, lw.length) >= 6 ? 5 : 4
+      return n.length >= 4 && lw.length >= 4 && n.slice(0, k) === lw.slice(0, k)
+    })
+  }
+  const kept = label
+    .replace(LEADING_VERBS, '')
+    .split(/\s+/)
+    .filter((w) => /^\(.*\)$/.test(w) || /\d/.test(w) || LABEL_HELPERS.has(w.toLowerCase().replace(/[^a-z&]/g, '')) || inNote(w.replace(/[^\w]/g, '')))
+    .join(' ')
+    .trim()
+  // Nothing recognisable left (or only filler) — fall back to the note itself.
+  const meaningful = kept.split(' ').some((w) => inNote(w.replace(/[^\w]/g, '')))
+  return meaningful ? kept : note.replace(LEADING_VERBS, '').replace(/[\d,.]+\s*(rs|₹|inr)?|₹\s*[\d,.]+/gi, '').trim() || label
+}
+
+function validate(raw: unknown, allowed: Map<string, Set<string>>, note: string): ParsedTransaction | null {
   if (!raw || typeof raw !== 'object') return null
   const r = raw as Record<string, unknown>
 
@@ -65,7 +101,7 @@ function validate(raw: unknown, allowed: Map<string, Set<string>>): ParsedTransa
 
   const type = r.type === 'income' ? 'income' : 'expense'
   const description = typeof r.description === 'string' && r.description.trim()
-    ? r.description.trim().slice(0, 120)
+    ? cleanLabel(r.description.trim(), note).slice(0, 120)
     : 'Transaction'
 
   // Only categories the app actually has — never let the model invent one here.
@@ -115,7 +151,7 @@ Rules:
 ${forcedType
     ? `- The user explicitly marked this as ${forcedType}. type MUST be "${forcedType}" for every entry, and category must be one that fits ${forcedType}.`
     : `- type is "income" only for money received (salary, refund, cashback, client payment); everything else is "expense".`}
-- Categorise by what the item actually IS, using your knowledge of Indian food, brands and services. Always choose the most specific subcategory that fits. Examples: "pani poori", "vada pav", "momos", "chai" → Food / Street Food; "chips", "biscuits", "chocolate", "cold drink" → Food / Snacks; "swiggy", "zomato", restaurant meals → Food / Dining Out; "sabzi", "atta", "milk" → Food / Groceries; "rapido", "ola" → Transportation / Cab; "tyre puncture", "bike service" → Transportation / Vehicle Maintenance; "jio recharge" → Bills / Mobile; "claude sub", "icloud", "netflix" → Subscriptions.
+- Categorise by what the item actually IS, using your knowledge of Indian food, brands and services. Always choose the most specific subcategory that fits. Examples: "pani poori", "vada pav", "momos", "chai" → Food / Street Food; "chips", "biscuits", "chocolate", "cold drink" → Food / Snacks; "swiggy", "zomato", restaurant meals → Food / Dining Out; "sabzi", "atta", "milk" → Food / Groceries; "rapido", "ola" → Transportation / Cab; "tyre puncture", "bike service" → Transportation / Vehicle Maintenance; "maid", "cook", "watchman", "dhobi" → Housing / Household Help; "jio recharge" → Bills / Mobile; "claude sub", "icloud", "netflix" → Subscriptions.
 - Use "Other" only when the item truly fits no category.
 - description is a short label built ONLY from words in the note (fix obvious spelling, add a word like "Subscription" or "Repair" if implied). Never invent names, people or brands that are not in the note.
 - date is null unless the note states or implies one.
@@ -209,7 +245,7 @@ export default {
     const list = (parsed as { transactions?: unknown })?.transactions
     const transactions = (Array.isArray(list) ? list : [])
       .slice(0, MAX_TRANSACTIONS)
-      .map((t) => validate(t, allowed))
+      .map((t) => validate(t, allowed, text))
       .filter((t): t is ParsedTransaction => t !== null)
       // The user's explicit choice beats whatever the model decided.
       .map((t) => (forcedType ? { ...t, type: forcedType } : t))

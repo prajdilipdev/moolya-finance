@@ -1,7 +1,7 @@
 import React from 'react'
 import {
   Utensils, Flame, Cookie, ShoppingBasket, Coffee, Car, Fuel, CarTaxiFront, TrainFront, Bus, Home, House,
-  Wrench, Zap, PlugZap, Droplets, FileText, Smartphone, Wifi, HeartPulse, Pill, GraduationCap,
+  Wrench, HandHelping, Zap, PlugZap, Droplets, FileText, Smartphone, Wifi, HeartPulse, Pill, GraduationCap,
   ShoppingBag, MonitorSmartphone, Shirt, Film, Plane, Repeat, CreditCard, Sparkles, CircleDashed,
   Wallet, Briefcase, Laptop, Building2, TrendingUp, Percent, BadgePercent, Gift, Coins, PiggyBank,
   Banknote, Landmark, Tag, Search, X, Plus, ArrowUp, ArrowDown, ChevronRight, ChevronLeft,
@@ -13,7 +13,7 @@ import {
 
 const MAP: Record<string, React.ElementType> = {
   Utensils, Flame, Cookie, ShoppingBasket, Coffee, Car, Fuel, CarTaxiFront, TrainFront, Bus, Home, House,
-  Wrench, Zap, PlugZap, Droplets, FileText, Smartphone, Wifi, HeartPulse, Pill, GraduationCap,
+  Wrench, HandHelping, Zap, PlugZap, Droplets, FileText, Smartphone, Wifi, HeartPulse, Pill, GraduationCap,
   ShoppingBag, MonitorSmartphone, Shirt, Film, Plane, Repeat, CreditCard, Sparkles, CircleDashed,
   Wallet, Briefcase, Laptop, Building2, TrendingUp, Percent, BadgePercent, Gift, Coins, PiggyBank,
   Banknote, Landmark, Tag, Search, X, Plus, ArrowUp, ArrowDown, ChevronRight, ChevronLeft,

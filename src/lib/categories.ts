@@ -16,6 +16,7 @@ export const CATEGORY_ICONS: Record<string, string> = {
   Housing: 'Home',
   Rent: 'House',
   'Home Maintenance': 'Wrench',
+  'Household Help': 'HandHelping',
   Utilities: 'Zap',
   Electricity: 'PlugZap',
   Water: 'Droplets',
@@ -87,6 +88,7 @@ export function defaultCategories(): Category[] {
   add('Vehicle Maintenance', E, 'Transportation', 'Wrench')
   add('Rent', E, 'Housing', 'House')
   add('Home Maintenance', E, 'Housing', 'Wrench')
+  add('Household Help', E, 'Housing', 'HandHelping')
   add('Electricity', E, 'Utilities', 'PlugZap')
   add('Water', E, 'Utilities', 'Droplets')
   add('Gas', E, 'Utilities', 'Flame')
@@ -138,6 +140,7 @@ const RULES: Array<[RegExp, string, string | null, number]> = [
   [/train|rail|irctc|metro|\bbus pass\b/i, 'Transportation', 'Train', 0.85],
   [/\bbus\b|busfare/i, 'Transportation', 'Public', 0.8],
   [/\brent\b/i, 'Housing', 'Rent', 0.95],
+  [/\bmaids?\b|kaamwali|\bbai\b|\bcook\b|watchman|security guard|gardener|\bmali\b|laundry|dhobi|istri|ironing|house ?help|car driver|driver salary|nanny|babysitter/i, 'Housing', 'Household Help', 0.85],
   [/maintenance|plumber|\brepair\b|home depot/i, 'Housing', 'Home Maintenance', 0.8],
   [/electricity|bijli|power bill|light bill|electric/i, 'Utilities', 'Electricity', 0.9],
   [/water bill|\bwater\b|pipeline/i, 'Utilities', 'Water', 0.9],
@@ -207,7 +210,7 @@ export function categoryIcon(id: string | null, categories: Category[]): string 
 const CAT_COLORS: Record<string, string> = {
   Food: '#D97706', 'Street Food': '#D97706', Snacks: '#EA580C', Groceries: '#F59E0B', 'Dining Out': '#FB923C',
   Transportation: '#2563EB', Fuel: '#3B82F6', Cab: '#60A5FA', Train: '#1D4ED8', Public: '#93C5FD', 'Vehicle Maintenance': '#1E40AF',
-  Housing: '#475569', Rent: '#64748B', 'Home Maintenance': '#94A3B8',
+  Housing: '#475569', Rent: '#64748B', 'Home Maintenance': '#94A3B8', 'Household Help': '#78716C',
   Utilities: '#0D9488', Electricity: '#14B8A6', Water: '#22D3EE', Gas: '#2DD4BF',
   Bills: '#D97706', Mobile: '#F59E0B', Internet: '#FB923C',
   Healthcare: '#E11D48', Medicine: '#F43F5E',
