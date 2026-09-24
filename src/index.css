@@ -3,67 +3,81 @@
 @tailwind utilities;
 
 /* =============================================================
-   Moolya · Premium Fintech Design Tokens
-   Deep navy + emerald accent · calm, trustworthy, refined
+   Moolya · Design Tokens
+   Paper-white / graphite surfaces · deep emerald · gold from the mark
    ============================================================= */
 
 :root {
   /* Surfaces */
-  --bg: 150 20% 98%;          /* #F6FAF7 */
-  --card: 0 0% 100%;          /* #FFFFFF */
-  --card-muted: 150 15% 95%;  /* #EFF5F1 */
-  --line: 150 12% 89%;        /* #DEE7E2 */
+  --bg: 60 11% 97%;           /* #F7F7F4 warm paper */
+  --card: 0 0% 100%;
+  --card-muted: 60 9% 94.5%;  /* #F2F2EE */
+  --line: 60 6% 88%;          /* #E2E2DC */
 
   /* Text */
-  --base: 160 30% 9%;         /* #0B1712 */
-  --base-muted: 155 12% 44%;  /* #627A6E */
-  --muted: 155 12% 64%;       /* #97ABA0 */
+  --base: 160 18% 10%;        /* #151D1A ink */
+  --base-muted: 160 6% 40%;   /* #606B67 */
+  --muted: 160 5% 60%;        /* #939A97 */
 
-  /* Brand accent — emerald */
-  --accent: 158 84% 34%;      /* #059669 */
-  --accent-strong: 158 90% 28%;
-  --accent-soft: 152 65% 94%;
-  --accent-ring: 158 84% 40%;
+  /* Brand — deep emerald */
+  --accent: 160 84% 28%;      /* #0B8458 */
+  --accent-strong: 161 86% 22%;
+  --accent-soft: 152 50% 93%;
+  --accent-ring: 160 84% 36%;
+
+  /* Brand — gold (the bindu in the logo) */
+  --gold: 38 92% 50%;         /* #F59E0B */
+  --gold-soft: 45 90% 92%;
 
   /* Semantic */
-  --positive: 158 84% 38%;    /* #10B981 income */
-  --positive-soft: 152 65% 94%;
-  --negative: 3 68% 56%;      /* #DE4B4B expense */
-  --negative-soft: 6 77% 95%;
-  --warning: 38 85% 48%;      /* #DC9318 */
-  --warning-soft: 40 70% 95%;
-  --info: 217 91% 58%;        /* #3B82F6 */
-  --info-soft: 214 100% 96%;
+  --positive: 158 78% 32%;
+  --positive-soft: 150 50% 93%;
+  --negative: 4 70% 50%;      /* #D93A2F */
+  --negative-soft: 6 80% 95%;
+  --warning: 34 90% 44%;
+  --warning-soft: 42 85% 93%;
+  --info: 214 80% 50%;
+  --info-soft: 214 90% 95%;
+
+  /* Elevation */
+  --shadow-sm: 0 1px 2px rgb(20 28 25 / 0.05);
+  --shadow-md: 0 1px 2px rgb(20 28 25 / 0.04), 0 6px 20px -8px rgb(20 28 25 / 0.10);
+  --shadow-lg: 0 2px 6px rgb(20 28 25 / 0.05), 0 24px 48px -16px rgb(20 28 25 / 0.22);
 
   color-scheme: light;
 }
 
 .dark {
-  /* Surfaces — deep rich black */
-  --bg: 160 10% 4%;           /* #080C0A deep obsidian black */
-  --card: 160 8% 7.5%;        /* #101513 sleek elevated card */
-  --card-muted: 160 8% 11%;   /* #171E1A */
-  --line: 160 8% 15%;         /* #212B25 */
+  /* Surfaces — neutral graphite, only faintly green */
+  --bg: 160 8% 5%;            /* #0C0E0D */
+  --card: 160 6% 8.5%;        /* #141716 */
+  --card-muted: 160 5% 12%;   /* #1D201F */
+  --line: 160 5% 16.5%;       /* #282C2A */
 
-  /* Text */
-  --base: 150 20% 98%;        /* #F5FBF7 */
-  --base-muted: 155 12% 68%;  /* #A2B5AB */
-  --muted: 155 10% 48%;       /* #6E8277 */
+  --base: 60 10% 95%;         /* #F3F3F0 */
+  --base-muted: 160 5% 66%;
+  --muted: 160 4% 48%;
 
-  /* Vibrant Emerald Accent */
-  --accent: 158 84% 44%;      /* #10B981 glowing emerald */
-  --accent-strong: 158 90% 38%; /* #059669 */
-  --accent-soft: 158 60% 10%; /* subtle dark emerald tint */
-  --accent-ring: 158 84% 48%;
+  --accent: 158 70% 45%;      /* #22C38A */
+  --accent-strong: 158 75% 38%;
+  --accent-soft: 158 45% 11%;
+  --accent-ring: 158 70% 50%;
 
-  --positive: 158 84% 46%;    /* #10B981 */
-  --positive-soft: 158 55% 11%;
-  --negative: 3 70% 62%;
-  --negative-soft: 3 45% 14%;
-  --warning: 38 90% 58%;
-  --warning-soft: 38 40% 14%;
-  --info: 215 90% 60%;
-  --info-soft: 215 45% 15%;
+  --gold: 42 95% 60%;
+  --gold-soft: 40 50% 13%;
+
+  --positive: 156 65% 48%;
+  --positive-soft: 156 45% 11%;
+  --negative: 4 80% 65%;
+  --negative-soft: 4 45% 13%;
+  --warning: 40 90% 60%;
+  --warning-soft: 38 45% 13%;
+  --info: 214 90% 66%;
+  --info-soft: 214 45% 14%;
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 1px 2px rgb(0 0 0 / 0.35), 0 8px 24px -10px rgb(0 0 0 / 0.6);
+  --shadow-lg: 0 2px 6px rgb(0 0 0 / 0.4), 0 28px 56px -18px rgb(0 0 0 / 0.75);
 
   color-scheme: dark;
 }
@@ -81,6 +95,17 @@ html {
 body {
   @apply bg-[hsl(var(--bg))] text-base font-sans;
   transition: background-color 0.25s ease, color 0.25s ease;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* Phones: 16px text in fields stops iOS Safari zooming the page on focus. */
+@media (max-width: 639px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
 }
 
 ::selection {
@@ -104,40 +129,44 @@ body {
 
 @layer components {
   .card {
-    @apply rounded-[16px] border bg-card;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 1px 1px rgba(15, 23, 42, 0.02);
+    @apply rounded-[18px] border bg-card;
+    box-shadow: var(--shadow-sm);
   }
   .card-hover {
     transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
   }
-  .card-hover:hover {
-    border-color: hsl(var(--accent) / 0.35);
-    box-shadow: 0 4px 14px -6px rgba(15, 23, 42, 0.12);
+  @media (hover: hover) {
+    .card-hover:hover {
+      border-color: hsl(var(--accent) / 0.3);
+      box-shadow: var(--shadow-md);
+    }
   }
 
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-[11px] px-4 py-2.5 text-sm font-semibold transition-all duration-150 focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-offset-[hsl(var(--bg))] focus-visible:ring-accent/50 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none select-none;
+    @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] px-4 py-2.5 text-sm font-semibold transition-all duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--bg))] focus-visible:ring-accent/50 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none select-none sm:min-h-[40px];
   }
   .btn-primary {
-    @apply btn bg-accent text-white hover:bg-accent-strong active:scale-[0.98] shadow-[0_1px_2px_rgba(16,185,129,0.25)];
+    @apply btn bg-accent text-white hover:bg-accent-strong;
+    box-shadow: 0 1px 2px rgb(11 132 88 / 0.25), inset 0 1px 0 rgb(255 255 255 / 0.12);
   }
   .btn-secondary {
-    @apply btn border bg-card text-base hover:bg-base/5 active:scale-[0.98];
+    @apply btn border bg-card text-base hover:bg-base/[0.04];
+    box-shadow: var(--shadow-sm);
   }
   .btn-ghost {
     @apply btn text-base-muted hover:bg-base/5 hover:text-base;
   }
   .btn-danger {
-    @apply btn bg-negative-soft text-negative hover:bg-negative/15 active:scale-[0.98];
+    @apply btn bg-negative-soft text-negative hover:bg-negative/15;
   }
 
   .input {
-    @apply w-full rounded-[11px] border bg-card px-3.5 py-2.5 text-sm text-base placeholder:text-muted/70 transition-all duration-150;
+    @apply min-h-[44px] w-full rounded-[12px] border bg-card px-3.5 py-2.5 text-sm text-base placeholder:text-muted transition-all duration-150 sm:min-h-[40px];
   }
   .input:focus {
     @apply outline-none;
-    border-color: hsl(var(--accent-ring) / 0.6);
-    box-shadow: 0 0 0 3px hsl(var(--accent) / 0.12);
+    border-color: hsl(var(--accent-ring) / 0.7);
+    box-shadow: 0 0 0 4px hsl(var(--accent) / 0.12);
   }
 
   .label {
@@ -146,6 +175,19 @@ body {
 
   .surface-muted {
     @apply bg-[hsl(var(--card-muted))];
+  }
+
+  /* Section heading used inside pages */
+  .section-title {
+    @apply flex items-center gap-2 text-[15px] font-bold tracking-tight;
+  }
+
+  /* Horizontal swipe row (stat cards on phones) */
+  .snap-row {
+    @apply -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden;
+  }
+  .snap-row > * {
+    @apply shrink-0 snap-start;
   }
 }
 

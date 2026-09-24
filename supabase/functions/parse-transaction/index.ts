@@ -15,15 +15,24 @@
 // Deploy:
 //   supabase functions deploy parse-transaction
 //   supabase secrets set OPENROUTER_API_KEY=sk-or-v1-...
-//   supabase secrets set OPENROUTER_MODEL=openrouter/free   # optional (default)
+//   supabase secrets set OPENROUTER_MODEL=some/model:free   # optional, tried before MODELS
 //
-// Request:  { text: string, categories: { name: string, subs: string[] }[] }
+// Request:  { text: string, categories: { name: string, subs: string[] }[], type?: 'income' | 'expense' }
 // Response: { transactions: ParsedTransaction[] }  |  { error: string }
 
 import { withSupabase } from 'npm:@supabase/server'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-const DEFAULT_MODEL = 'openrouter/free'
+// Tried in order; the next one takes over the moment one fails (HTTP error,
+// rate limit, timeout, empty or non-JSON reply). Picked by benchmarking the
+// free models on Indian-English notes: ling-flash-fin was fastest and exact,
+// the others matched it for accuracy. OPENROUTER_MODEL, if set, goes first.
+const MODELS = [
+  'inclusionai/ling-3.0-flash-fin:free',
+  'inclusionai/ling-3.0-flash-sante:free',
+  'nex-agi/nex-n2.5-mini:free',
+]
+const MODEL_TIMEOUT_MS = 12_000
 const MAX_INPUT_CHARS = 2000
 const MAX_TRANSACTIONS = 25
 
@@ -88,7 +97,7 @@ function validate(raw: unknown, allowed: Map<string, Set<string>>): ParsedTransa
   }
 }
 
-function systemPrompt(categories: { name: string; subs: string[] }[], today: string): string {
+function systemPrompt(categories: { name: string; subs: string[] }[], today: string, forcedType: 'income' | 'expense' | null): string {
   const tree = categories.map((c) => (c.subs.length ? `${c.name}: ${c.subs.join(', ')}` : c.name)).join('\n')
   return `You convert short personal-finance notes written in Indian English into structured transactions.
 
@@ -103,11 +112,62 @@ Return ONLY a JSON object, no prose and no markdown fences:
 
 Rules:
 - One entry per distinct transaction in the note.
-- type is "income" only for money received (salary, refund, cashback, client payment); everything else is "expense".
+${forcedType
+    ? `- The user explicitly marked this as ${forcedType}. type MUST be "${forcedType}" for every entry, and category must be one that fits ${forcedType}.`
+    : `- type is "income" only for money received (salary, refund, cashback, client payment); everything else is "expense".`}
+- Categorise by what the item actually IS, using your knowledge of Indian food, brands and services. Always choose the most specific subcategory that fits. Examples: "pani poori", "vada pav", "momos", "chai" → Food / Street Food; "chips", "biscuits", "chocolate", "cold drink" → Food / Snacks; "swiggy", "zomato", restaurant meals → Food / Dining Out; "sabzi", "atta", "milk" → Food / Groceries; "rapido", "ola" → Transportation / Cab; "jio recharge" → Bills / Mobile.
+- Use "Other" only when the item truly fits no category.
 - description is a short human label, not the raw sentence.
 - date is null unless the note states or implies one.
 - confidence is 0-1: how sure you are of amount and type.
 - If you cannot find an amount, return {"transactions":[]}.`
+}
+
+type Message = { role: 'system' | 'user'; content: string }
+
+/** Pulls the JSON object out of a reply; models sometimes wrap it in prose or fences. */
+function extractJSON(content: unknown): unknown | null {
+  if (typeof content !== 'string') return null
+  const start = content.indexOf('{')
+  const end = content.lastIndexOf('}')
+  if (start === -1 || end <= start) return null
+  try {
+    return JSON.parse(content.slice(start, end + 1))
+  } catch {
+    return null
+  }
+}
+
+async function askModels(apiKey: string, messages: Message[]): Promise<unknown | null> {
+  const preferred = Deno.env.get('OPENROUTER_MODEL')
+  const models = preferred ? [preferred, ...MODELS.filter((m) => m !== preferred)] : MODELS
+
+  for (const model of models) {
+    try {
+      const res = await fetch(OPENROUTER_URL, {
+        method: 'POST',
+        signal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          'Content-Type': 'application/json',
+          'X-Title': 'Moolya Finance',
+        },
+        body: JSON.stringify({ model, max_tokens: 1500, messages }),
+      })
+      if (!res.ok) {
+        // Log the provider's message, never the key, never to the client.
+        console.error('openrouter', model, res.status, (await res.text()).slice(0, 300))
+        continue
+      }
+      const payload = await res.json().catch(() => null)
+      const parsed = extractJSON(payload?.choices?.[0]?.message?.content)
+      if (parsed !== null) return parsed
+      console.error('openrouter', model, 'unusable reply')
+    } catch (e) {
+      console.error('openrouter', model, e instanceof Error ? e.name : 'error')
+    }
+  }
+  return null
 }
 
 export default {
@@ -119,7 +179,7 @@ export default {
     const apiKey = Deno.env.get('OPENROUTER_API_KEY')
     if (!apiKey) return json({ error: 'AI is not configured on the server.' }, 501)
 
-    let body: { text?: unknown; categories?: unknown }
+    let body: { text?: unknown; categories?: unknown; type?: unknown }
     try {
       body = await req.json()
     } catch {
@@ -137,61 +197,22 @@ export default {
           .slice(0, 60)
       : []
     const allowed = new Map(categories.map((c) => [c.name, new Set(c.subs)]))
+    const forcedType = body.type === 'income' || body.type === 'expense' ? body.type : null
 
     const today = new Date().toISOString().slice(0, 10)
 
-    let upstream: Response
-    try {
-      upstream = await fetch(OPENROUTER_URL, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${apiKey}`,
-          'Content-Type': 'application/json',
-          'X-Title': 'Moolya Finance',
-        },
-        body: JSON.stringify({
-          model: Deno.env.get('OPENROUTER_MODEL') ?? DEFAULT_MODEL,
-          max_tokens: 1500,
-          response_format: { type: 'json_object' },
-          messages: [
-            { role: 'system', content: systemPrompt(categories, today) },
-            { role: 'user', content: text },
-          ],
-        }),
-      })
-    } catch {
-      return json({ error: 'Could not reach the AI provider.' }, 502)
-    }
-
-    if (!upstream.ok) {
-      // Surface the provider's message (e.g. an unknown model id) to the
-      // function log, but never to the client and never the key.
-      const detail = await upstream.text()
-      console.error('openrouter error', upstream.status, detail.slice(0, 500))
-      return json({ error: `AI provider returned ${upstream.status}.` }, 502)
-    }
-
-    const payload = await upstream.json().catch(() => null)
-    const content = payload?.choices?.[0]?.message?.content
-    if (typeof content !== 'string') return json({ error: 'Empty response from the AI provider.' }, 502)
-
-    // Models sometimes wrap JSON in prose or fences despite instructions.
-    const start = content.indexOf('{')
-    const end = content.lastIndexOf('}')
-    if (start === -1 || end <= start) return json({ transactions: [] })
-
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(content.slice(start, end + 1))
-    } catch {
-      return json({ transactions: [] })
-    }
-
+    const parsed = await askModels(apiKey, [
+      { role: 'system', content: systemPrompt(categories, today, forcedType) },
+      { role: 'user', content: text },
+    ])
+    if (parsed === null) return json({ error: 'No AI model produced a usable answer.' }, 502)
     const list = (parsed as { transactions?: unknown })?.transactions
     const transactions = (Array.isArray(list) ? list : [])
       .slice(0, MAX_TRANSACTIONS)
       .map((t) => validate(t, allowed))
       .filter((t): t is ParsedTransaction => t !== null)
+      // The user's explicit choice beats whatever the model decided.
+      .map((t) => (forcedType ? { ...t, type: forcedType } : t))
 
     return json({ transactions })
   }),

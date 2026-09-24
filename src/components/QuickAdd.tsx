@@ -11,6 +11,21 @@ import { cn } from '@/lib/utils'
 
 const EXAMPLES = ['200rs pav bhaji', '25k salary', '500 petrol', '30rs pani poori']
 
+type Mode = 'auto' | TransactionType
+
+/**
+ * When the user explicitly picks Expense or Income, that choice wins over
+ * anything the text suggests. A category from the other side (e.g. "gift"
+ * guessed as Income/Gifts while Expense is selected) no longer fits, so it
+ * falls back to that side's catch-all.
+ */
+function applyMode(p: ParsedTransaction, mode: Mode): ParsedTransaction {
+  if (mode === 'auto') return p
+  if (mode === 'expense' && p.category === 'Income') return { ...p, type: 'expense', category: 'Other', subcategory: null }
+  if (mode === 'income' && p.category !== 'Income') return { ...p, type: 'income', category: 'Income', subcategory: 'Other Income' }
+  return { ...p, type: mode }
+}
+
 export function QuickAdd({
   autoFocus = false,
   onDone,
@@ -24,6 +39,7 @@ export function QuickAdd({
   const { db, addParsedTransactions } = useApp()
   const { toast } = useToast()
   const [text, setText] = useState('')
+  const [mode, setMode] = useState<Mode>(defaultType ?? 'auto')
   const [stage, setStage] = useState<'idle' | 'parsing' | 'success'>('idle')
   const [savedCount, setSavedCount] = useState(0)
   const [errors, setErrors] = useState<{ line: string; reason: string }[]>([])
@@ -98,7 +114,12 @@ export function QuickAdd({
     e?.preventDefault()
     if (!text.trim() || stage === 'parsing') return
 
-    const { parsed, errors: errs } = parseBlock(text, db, undefined, defaultType)
+    const forced = mode === 'auto' ? undefined : mode
+    const local = parseBlock(text, db, undefined, forced ?? defaultType)
+    const errs = local.errors
+    const parsed = local.parsed.map((p) => applyMode(p, mode))
+    // Low confidence includes anything the keyword rules couldn't place
+    // ("Other"), so unknown items like "dabeli" get categorised by the AI.
     const lowConfidence = parsed.length > 0 && parsed.every((p) => p.confidence < 0.6)
     const worthAsking = isAIAvailable() && (parsed.length === 0 || lowConfidence)
 
@@ -113,9 +134,9 @@ export function QuickAdd({
     setStage('parsing')
 
     if (worthAsking) {
-      const ai = await parseWithAI(text, db.categories)
+      const ai = await parseWithAI(text, db.categories, forced)
       if (ai && ai.length > 0) {
-        executeSave(ai)
+        executeSave(ai.map((p) => applyMode(p, mode)))
         return
       }
       if (parsed.length === 0) {
@@ -136,14 +157,44 @@ export function QuickAdd({
 
   const handleCalc = () => {
     if (!calc) return
-    const parsed = parseLine(`${calc.value}rs`, { categories: db.categories, rules: db.userCategoryRules, defaultType })
+    const parsed = parseLine(`${calc.value}rs`, { categories: db.categories, rules: db.userCategoryRules, defaultType: mode === 'auto' ? defaultType : mode })
     if (!parsed) return
-    const toSave = [{ ...parsed, description: `Calc: ${calc.expression}`, category: 'Other', subcategory: null }]
+    const toSave = [applyMode({ ...parsed, description: `Calc: ${calc.expression}`, category: 'Other', subcategory: null }, mode)]
     executeSave(toSave)
   }
 
   return (
     <div className="relative">
+      <div className="mb-2 flex items-center gap-2">
+        <div role="radiogroup" aria-label="Transaction type" className="inline-flex rounded-full border bg-card p-0.5">
+          {([
+            ['auto', 'Auto', Sparkles, 'text-accent'],
+            ['expense', 'Expense', ArrowDownRight, 'text-negative'],
+            ['income', 'Income', ArrowUpRight, 'text-positive'],
+          ] as const).map(([value, label, Icon, tone]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={mode === value}
+              onClick={() => {
+                setMode(value)
+                inputRef.current?.focus()
+              }}
+              className={cn(
+                'inline-flex min-h-[32px] items-center gap-1.5 rounded-full px-3 text-xs font-semibold transition-colors',
+                mode === value ? 'bg-base/10 text-[hsl(var(--base))]' : 'text-base-muted hover:text-[hsl(var(--base))]'
+              )}
+            >
+              <Icon className={cn('h-3.5 w-3.5', mode === value ? tone : '')} />
+              {label}
+            </button>
+          ))}
+        </div>
+        <span className="hidden text-[11px] text-base-muted sm:inline">
+          {mode === 'auto' ? 'Detects income or expense from what you type' : `Everything you add goes to ${mode === 'income' ? 'Income' : 'Expenses'}`}
+        </span>
+      </div>
       <form onSubmit={handleSubmit}>
         <div
           className={cn(
@@ -164,7 +215,7 @@ export function QuickAdd({
                 setText(e.target.value)
                 if (stage === 'success') setStage('idle')
               }}
-              placeholder={'What did you spend or earn? (e.g. 200rs pav bhaji)'}
+              placeholder={mode === 'income' ? 'What did you earn? (e.g. 25k salary)' : mode === 'expense' ? 'What did you spend on? (e.g. 20rs pani poori)' : 'What did you spend or earn? (e.g. 200rs pav bhaji)'}
               className="w-full bg-transparent text-[15px] font-medium placeholder:text-muted/70 focus:outline-none"
               aria-label="Quick add transaction"
               autoComplete="off"
@@ -214,7 +265,7 @@ export function QuickAdd({
                 = {money(calc.value)} <span className="opacity-70">·</span>
               </span>
               <button type="button" onClick={handleCalc} className="btn-secondary ml-auto !py-1.5 text-xs">
-                <Plus className="h-3.5 w-3.5" /> Add {money(calc.value)} as Expense
+                <Plus className="h-3.5 w-3.5" /> Add {money(calc.value)} as {mode === 'income' ? 'Income' : 'Expense'}
               </button>
             </div>
           )}

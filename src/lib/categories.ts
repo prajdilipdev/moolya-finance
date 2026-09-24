@@ -4,6 +4,7 @@ import { uid } from './format'
 export const CATEGORY_ICONS: Record<string, string> = {
   Food: 'Utensils',
   'Street Food': 'Flame',
+  Snacks: 'Cookie',
   Groceries: 'ShoppingBasket',
   'Dining Out': 'Coffee',
   Transportation: 'Car',
@@ -71,6 +72,7 @@ export function defaultCategories(): Category[] {
 
   // Expense children
   add('Street Food', E, 'Food', 'Flame')
+  add('Snacks', E, 'Food', 'Cookie')
   add('Groceries', E, 'Food', 'ShoppingBasket')
   add('Dining Out', E, 'Food', 'Coffee')
   add('Fuel', E, 'Transportation', 'Fuel')
@@ -119,7 +121,8 @@ const RULES: Array<[RegExp, string, string | null, number]> = [
   // Electronics first (cable contains "cab", phone etc.)
   [/charger|cable|earphone|headphone|electronics|gadget|laptop|screen|phone case|phone cover|phone/i, 'Shopping', 'Electronics', 0.85],
   [/shirt|jeans|dress|clothing|clothes|shoes|apparel|trouser/i, 'Shopping', 'Clothing', 0.8],
-  [/pav bhaji|pani poori|panipuri|chaat|street food|chai|tea|coffee shop|samosa|vada/i, 'Food', 'Street Food', 0.9],
+  [/pav bhaji|pani ?p(?:oo|u)ri|gol ?gappe?|golgappa|puchka|chaat|bhel|sev ?puri|dahi ?puri|ragda|dabeli|vada ?pav|misal|kachori|momos?|frankie|kathi roll|egg roll|chole bhature|pakod?a|bhaji|street food|\bchai\b|\btea\b|cutting|samosa|vada|idli|dosa|poha|upma|maggi|sandwich|kulfi|gola|jalebi|lassi|nimbu pani|sugarcane|ganne ka ras|coconut water|nariyal pani/i, 'Food', 'Street Food', 0.9],
+  [/snacks?|chips|lays|kurkure|namkeen|bhujia|biscuits?|cookies?|chocolates?|dairy milk|kitkat|candy|toffee|ice ?cream|cold ?drink|soft drink|coke|pepsi|sprite|thums up|juice|popcorn|nachos|cake|pastry|donut|mithai|sweets|ladoo|barfi/i, 'Food', 'Snacks', 0.85],
   [/veg|vegetable|vegetables|milk|bread|dairy|grocery|groceries|grocer|kirana|provision|ration|egg|fruits|fruit|onion|rice|daal|dal/i, 'Food', 'Groceries', 0.85],
   [/swiggy|zomato|restaurant|food delivery|dominos|mcdonalds|pizza|burger/i, 'Food', 'Dining Out', 0.85],
   [/\bfood\b|meal|lunch|dinner|breakfast|snack|tiffin|biryani|thali/i, 'Food', null, 0.7],
@@ -195,7 +198,7 @@ export function categoryIcon(id: string | null, categories: Category[]): string 
 // Muted, sophisticated per-category color (hex). Used for icons, chips & chart
 // series. Soft backgrounds are derived via alpha in components.
 const CAT_COLORS: Record<string, string> = {
-  Food: '#D97706', 'Street Food': '#D97706', Groceries: '#F59E0B', 'Dining Out': '#FB923C',
+  Food: '#D97706', 'Street Food': '#D97706', Snacks: '#EA580C', Groceries: '#F59E0B', 'Dining Out': '#FB923C',
   Transportation: '#2563EB', Fuel: '#3B82F6', Cab: '#60A5FA', Train: '#1D4ED8', Public: '#93C5FD',
   Housing: '#475569', Rent: '#64748B', 'Home Maintenance': '#94A3B8',
   Utilities: '#0D9488', Electricity: '#14B8A6', Water: '#22D3EE', Gas: '#2DD4BF',

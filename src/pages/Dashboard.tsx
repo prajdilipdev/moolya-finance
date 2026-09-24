@@ -68,7 +68,7 @@ export function Dashboard() {
       <div>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{greeting()}, {db.profile?.name || 'there'} 👋</h2>
+            <h2 className="text-[22px] font-extrabold leading-tight tracking-tight sm:text-3xl">{greeting()}, {db.profile?.name || 'there'} 👋</h2>
             <p className="mt-0.5 text-sm text-base-muted">Your financial overview</p>
           </div>
           <div className="hidden items-center gap-2 sm:flex">
@@ -81,15 +81,15 @@ export function Dashboard() {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="card relative mt-4 overflow-hidden border-emerald-500/20 bg-[linear-gradient(145deg,#060C09,#0E1D16)] p-5 text-white shadow-[0_10px_30px_-10px_rgba(16,185,129,0.15)] sm:p-6"
+          className="relative mt-4 overflow-hidden rounded-[24px] bg-[linear-gradient(150deg,#073B2A_0%,#0A5C40_55%,#0B7A55_100%)] p-5 text-white shadow-[0_18px_40px_-18px_rgba(7,59,42,0.7)] ring-1 ring-white/10 sm:p-7"
         >
           <div
-            className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-25"
-            style={{ background: 'radial-gradient(circle, #10B981 0%, transparent 70%)' }}
+            className="pointer-events-none absolute -right-20 -top-28 h-72 w-72 rounded-full opacity-30"
+            style={{ background: 'radial-gradient(circle, #FCD34D 0%, transparent 65%)' }}
           />
           <div
-            className="pointer-events-none absolute -bottom-24 -left-16 h-64 w-64 rounded-full opacity-15"
-            style={{ background: 'radial-gradient(circle, #059669 0%, transparent 70%)' }}
+            className="pointer-events-none absolute -bottom-28 -left-16 h-72 w-72 rounded-full opacity-25"
+            style={{ background: 'radial-gradient(circle, #34D399 0%, transparent 70%)' }}
           />
           <div className="relative flex items-center justify-between gap-2">
             <span className="text-sm font-medium text-white/70">Available Balance</span>
@@ -172,7 +172,7 @@ export function Dashboard() {
       </motion.section>
 
       {/* Metric cards */}
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <section className="snap-row sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 lg:grid-cols-4 [&>*]:w-[68%] sm:[&>*]:w-auto">
         <StatCard label="Budget Used" value={`${Math.round(budget?.usedPct || 0)}%`} icon="WalletCards" tone={budget && budget.usedPct > 90 ? 'negative' : budget && budget.usedPct > 75 ? 'accent' : 'neutral'} sub={budget ? `${money(budget.remaining)} remaining of ${money(budget.budget.amount)}` : 'No overall budget'} delay={0.05} />
         <StatCard label="Avg Daily Spend" value={money(avgDaily)} icon="CalendarClock" sub={`${new Set(txs.map((t) => t.transactionDate)).size} active days`} delay={0.1} />
         <StatCard label="Expense Ratio" value={`${Math.round(totals.expenseRatio)}%`} icon="TrendingDown" tone={totals.expenseRatio > 80 ? 'negative' : 'neutral'} sub="of income" delay={0.15} />

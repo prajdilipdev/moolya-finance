@@ -184,10 +184,10 @@ supabase secrets set OPENROUTER_API_KEY=sk-or-v1-your-key-here
 
 Auth is enforced twice over on purpose: the platform validates the JWT before the handler runs (`verify_jwt` defaults to true — leave it on), and `auth: 'user'` re-checks the claims inside.
 
-The model defaults to `openrouter/free` (OpenRouter's free-model router) and is overridable — set `OPENROUTER_MODEL` to any id from [openrouter.ai/models](https://openrouter.ai/models) if you want a cheaper or different one:
+The function tries `inclusionai/ling-3.0-flash-fin:free` first and instantly falls back to `inclusionai/ling-3.0-flash-sante:free`, then `nex-agi/nex-n2.5-mini:free`, if a model errors, is rate-limited, times out or replies with unusable output. Set `OPENROUTER_MODEL` to try a different model first:
 
 ```bash
-supabase secrets set OPENROUTER_MODEL=openrouter/free
+supabase secrets set OPENROUTER_MODEL=google/gemma-4-31b-it:free
 ```
 
 Skip the deploy and nothing breaks: `parseWithAI` fails soft and the local parser stays in charge.

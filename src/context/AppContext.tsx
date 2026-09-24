@@ -219,6 +219,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const root = document.documentElement
     const apply = (t: 'light' | 'dark') => {
       root.classList.toggle('dark', t === 'dark')
+      // Browser chrome (mobile status bar / address bar) follows the theme.
+      document.querySelector('meta[name="theme-color"]')?.setAttribute('content', t === 'dark' ? '#0C0E0D' : '#F7F7F4')
     }
     const p = db.profile
     const pref = p?.theme || 'system'

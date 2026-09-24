@@ -1,6 +1,6 @@
 import React from 'react'
 import {
-  Utensils, Flame, ShoppingBasket, Coffee, Car, Fuel, CarTaxiFront, TrainFront, Bus, Home, House,
+  Utensils, Flame, Cookie, ShoppingBasket, Coffee, Car, Fuel, CarTaxiFront, TrainFront, Bus, Home, House,
   Wrench, Zap, PlugZap, Droplets, FileText, Smartphone, Wifi, HeartPulse, Pill, GraduationCap,
   ShoppingBag, MonitorSmartphone, Shirt, Film, Plane, Repeat, CreditCard, Sparkles, CircleDashed,
   Wallet, Briefcase, Laptop, Building2, TrendingUp, Percent, BadgePercent, Gift, Coins, PiggyBank,
@@ -12,7 +12,7 @@ import {
 } from 'lucide-react'
 
 const MAP: Record<string, React.ElementType> = {
-  Utensils, Flame, ShoppingBasket, Coffee, Car, Fuel, CarTaxiFront, TrainFront, Bus, Home, House,
+  Utensils, Flame, Cookie, ShoppingBasket, Coffee, Car, Fuel, CarTaxiFront, TrainFront, Bus, Home, House,
   Wrench, Zap, PlugZap, Droplets, FileText, Smartphone, Wifi, HeartPulse, Pill, GraduationCap,
   ShoppingBag, MonitorSmartphone, Shirt, Film, Plane, Repeat, CreditCard, Sparkles, CircleDashed,
   Wallet, Briefcase, Laptop, Building2, TrendingUp, Percent, BadgePercent, Gift, Coins, PiggyBank,

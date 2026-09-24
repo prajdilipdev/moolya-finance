@@ -1,5 +1,5 @@
 import { ParsedTransaction, TransactionType, Category, UserCategoryRule, DB } from './types'
-import { guessCategory, matchRuleToCategory, findOrCreateCategory } from './categories'
+import { guessCategory, matchRuleToCategory, findOrCreateCategory, CATEGORY_ICONS } from './categories'
 import { todayISO, toISODate, addDays, uid } from './format'
 import { cleanNarration } from './narration'
 
@@ -375,6 +375,13 @@ export function parseLine(
     category = g.category
     subcategory = g.subcategory
     confidence = g.confidence
+    // A keyword can point at the other side ("gift for sister" matches
+    // Income/Gifts) — the category must agree with the resolved type.
+    if (type === 'expense' && category === 'Income') {
+      category = 'Other'
+      subcategory = null
+      confidence = 0.5
+    }
   }
 
   return {
@@ -786,12 +793,12 @@ export function materializeInto(
   categories: Category[]
 ): { categoryId: string; subcategoryId: string | null; categories: Category[] } {
   const parentName = parsed.category || (parsed.type === 'income' ? 'Income' : 'Other')
-  const withParent = findOrCreateCategory(categories, parsed.type, parentName)
+  const withParent = findOrCreateCategory(categories, parsed.type, parentName, CATEGORY_ICONS[parentName])
   let next = withParent.categories
   const parentId = withParent.id
   let subcategoryId: string | null = null
   if (parsed.subcategory) {
-    const sc = findOrCreateCategory(next, parsed.type, parsed.subcategory, undefined, parentId)
+    const sc = findOrCreateCategory(next, parsed.type, parsed.subcategory, CATEGORY_ICONS[parsed.subcategory], parentId)
     next = sc.categories
     subcategoryId = sc.id
   }

@@ -29,6 +29,8 @@ export default {
         warning: 'hsl(var(--warning) / <alpha-value>)',
         'warning-soft': 'hsl(var(--warning-soft) / <alpha-value>)',
         info: 'hsl(var(--info) / <alpha-value>)',
+        gold: 'hsl(var(--gold) / <alpha-value>)',
+        'gold-soft': 'hsl(var(--gold-soft) / <alpha-value>)',
         'info-soft': 'hsl(var(--info-soft) / <alpha-value>)',
       },
       borderRadius: {
@@ -36,8 +38,9 @@ export default {
         '2xl': '1.25rem',
       },
       boxShadow: {
-        soft: '0 1px 2px rgba(15,23,42,0.04), 0 8px 24px -12px rgba(15,23,42,0.12)',
-        card: '0 1px 2px rgba(15,23,42,0.04), 0 1px 1px rgba(15,23,42,0.03)',
+        soft: 'var(--shadow-md)',
+        card: 'var(--shadow-sm)',
+        lift: 'var(--shadow-lg)',
       },
       keyframes: {
         'fade-up': {
