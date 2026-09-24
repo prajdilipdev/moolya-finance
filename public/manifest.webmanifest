@@ -1,0 +1,15 @@
+{
+  "name": "Moolya · Personal Finance",
+  "short_name": "Moolya",
+  "description": "Private personal finance and expense manager",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0C0E0D",
+  "theme_color": "#0B4A32",
+  "icons": [
+    { "src": "/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
