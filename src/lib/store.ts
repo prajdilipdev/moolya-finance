@@ -1,5 +1,5 @@
 import { DB, Transaction, Profile, Budget, Recurring, Bill, Subscription, Goal, Debt, UserCategoryRule, Category, PaymentMethod } from './types'
-import { defaultCategories, defaultPaymentMethods } from './categories'
+import { defaultCategories, defaultPaymentMethods, repairCategories } from './categories'
 import { todayISO, addDays, uid, toISODate, advanceByFrequency } from './format'
 
 const KEY = 'aavishkar.finance.v1'
@@ -22,12 +22,21 @@ export function defaultDB(): DB {
   }
 }
 
+/** True once this device has saved any data — an empty ledger is then the user's choice, not a first run. */
+export function hasSavedDB(): boolean {
+  try {
+    return localStorage.getItem(KEY) !== null
+  } catch {
+    return false
+  }
+}
+
 export function loadDB(): DB {
   try {
     const raw = localStorage.getItem(KEY)
     if (raw) {
       const parsed = JSON.parse(raw) as DB
-      if (parsed && parsed.version) return parsed
+      if (parsed && parsed.version) return repairCategories(parsed).db
     }
   } catch {
     /* ignore */
@@ -86,7 +95,7 @@ export function exportJSON(db: DB): string {
 export function importJSON(json: string): DB {
   const parsed = JSON.parse(json) as DB
   if (!parsed.categories) throw new Error('Invalid backup file')
-  return { ...defaultDB(), ...parsed }
+  return repairCategories({ ...defaultDB(), ...parsed }).db
 }
 
 // ---- Recurring auto-create engine ----

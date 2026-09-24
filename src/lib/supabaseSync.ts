@@ -13,7 +13,7 @@ import {
   Category,
   PaymentMethod,
 } from './types'
-import { defaultCategories, defaultPaymentMethods } from './categories'
+import { defaultCategories, defaultPaymentMethods, repairCategories, type CategoryRepair } from './categories'
 import { defaultDB, seedData } from './store'
 
 // ---- Mappers: Supabase (snake_case) <-> Frontend (camelCase) ----
@@ -415,8 +415,11 @@ export async function fetchCloudDB(userId: string): Promise<DB | null> {
 /**
  * Initializes a new user's cloud account with seed data (categories, sample transactions, etc.)
  */
-export async function seedCloudUser(userId: string, initialDb: DB): Promise<void> {
+export async function seedCloudUser(userId: string, seed: DB): Promise<void> {
   if (!supabase) return
+  // Subcategories must reference their parent by id or the categories
+  // foreign key rejects them (and every transaction pointing at them).
+  const initialDb = repairCategories(seed).db
 
   try {
     // 1. Profile
@@ -566,6 +569,21 @@ export async function cloudDeleteDebt(id: string): Promise<void> {
 export async function cloudUpsertCategory(category: Category, userId: string): Promise<void> {
   if (!supabase) return
   await supabase.from('categories').upsert(mapCategoryToDb(category, userId))
+}
+
+/** Writes a local category repair back to the cloud: relinked categories, repointed records, then removes the merged duplicates. */
+export async function cloudApplyCategoryRepair(r: CategoryRepair, userId: string): Promise<void> {
+  if (!supabase || !r.changed) return
+  if (r.fixed.length) await supabase.from('categories').upsert(r.fixed.map((c) => mapCategoryToDb(c, userId)))
+  const t = r.touched
+  if (t.transactions?.length) await supabase.from('transactions').upsert((t.transactions as Transaction[]).map((x) => mapTransactionToDb(x, userId)))
+  if (t.budgets?.length) await supabase.from('budgets').upsert((t.budgets as Budget[]).map((x) => mapBudgetToDb(x, userId)))
+  if (t.recurring?.length) await supabase.from('recurring').upsert((t.recurring as Recurring[]).map((x) => mapRecurringToDb(x, userId)))
+  if (t.bills?.length) await supabase.from('bills').upsert((t.bills as Bill[]).map((x) => mapBillToDb(x, userId)))
+  if (t.subscriptions?.length) await supabase.from('subscriptions').upsert((t.subscriptions as Subscription[]).map((x) => mapSubscriptionToDb(x, userId)))
+  if (t.debts?.length) await supabase.from('debts').upsert((t.debts as Debt[]).map((x) => mapDebtToDb(x, userId)))
+  if (t.userCategoryRules?.length) await supabase.from('user_category_rules').upsert((t.userCategoryRules as UserCategoryRule[]).map((x) => mapRuleToDb(x, userId)))
+  if (r.removedIds.length) await supabase.from('categories').delete().in('id', r.removedIds)
 }
 
 export async function cloudDeleteCategory(id: string): Promise<void> {

@@ -1,4 +1,4 @@
-import { Category, PaymentMethod, UserCategoryRule } from './types'
+import { Category, DB, PaymentMethod, UserCategoryRule } from './types'
 import { uid } from './format'
 
 export const CATEGORY_ICONS: Record<string, string> = {
@@ -51,8 +51,12 @@ const I = 'income'
 
 export function defaultCategories(): Category[] {
   const list: Category[] = []
-  const add = (name: string, type: string, parent: string | null, icon: string, system = true) =>
-    list.push({ id: uid('cat_'), name, type: type as 'income' | 'expense', parentId: parent, icon, system })
+  // `parent` is the parent's *name* here for readability; it is stored as the
+  // parent's id, which is what every lookup (and the cloud foreign key) expects.
+  const add = (name: string, type: string, parent: string | null, icon: string, system = true) => {
+    const parentId = parent ? list.find((c) => c.name === parent && c.type === type && !c.parentId)?.id ?? null : null
+    list.push({ id: uid('cat_'), name, type: type as 'income' | 'expense', parentId, icon, system })
+  }
 
   // Expense parents
   add('Food', E, null, 'Utensils')
@@ -121,7 +125,7 @@ const RULES: Array<[RegExp, string, string | null, number]> = [
   // Electronics first (cable contains "cab", phone etc.)
   [/charger|cable|earphone|headphone|electronics|gadget|laptop|screen|phone case|phone cover|phone/i, 'Shopping', 'Electronics', 0.85],
   [/shirt|jeans|dress|clothing|clothes|shoes|apparel|trouser/i, 'Shopping', 'Clothing', 0.8],
-  [/pav bhaji|pani ?p(?:oo|u)ri|gol ?gappe?|golgappa|puchka|chaat|bhel|sev ?puri|dahi ?puri|ragda|dabeli|vada ?pav|misal|kachori|momos?|frankie|kathi roll|egg roll|chole bhature|pakod?a|bhaji|street food|\bchai\b|\btea\b|cutting|samosa|vada|idli|dosa|poha|upma|maggi|sandwich|kulfi|gola|jalebi|lassi|nimbu pani|sugarcane|ganne ka ras|coconut water|nariyal pani/i, 'Food', 'Street Food', 0.9],
+  [/pav bhaji|pani ?p(?:oo|u)ri|gol ?gappe?|golgappa|puchka|chaat|bhel|sev ?puri|dahi ?puri|ragda|dabeli|(?:vada|wada|vala) ?pa+v|misal|kachori|momos?|frankie|kathi roll|egg roll|chole bhature|pakod?a|bhaji|street food|\bchai\b|\btea\b|cutting|samosa|vada|idli|dosa|poha|upma|maggi|sandwich|kulfi|gola|jalebi|lassi|nimbu pani|sugarcane|ganne ka ras|coconut water|nariyal pani/i, 'Food', 'Street Food', 0.9],
   [/snacks?|chips|lays|kurkure|namkeen|bhujia|biscuits?|cookies?|chocolates?|dairy milk|kitkat|candy|toffee|ice ?cream|cold ?drink|soft drink|coke|pepsi|sprite|thums up|juice|popcorn|nachos|cake|pastry|donut|mithai|sweets|ladoo|barfi/i, 'Food', 'Snacks', 0.85],
   [/veg|vegetable|vegetables|milk|bread|dairy|grocery|groceries|grocer|kirana|provision|ration|egg|fruits|fruit|onion|rice|daal|dal/i, 'Food', 'Groceries', 0.85],
   [/swiggy|zomato|restaurant|food delivery|dominos|mcdonalds|pizza|burger/i, 'Food', 'Dining Out', 0.85],
@@ -244,4 +248,88 @@ export function findOrCreateCategory(
     system,
   }
   return { categories: [...categories, cat], id: cat.id }
+}
+
+/** Collections whose records point at categories via categoryId / subcategoryId. */
+export const CATEGORY_LINKED = ['transactions', 'budgets', 'recurring', 'bills', 'subscriptions', 'debts', 'userCategoryRules'] as const
+export type CategoryLinked = (typeof CATEGORY_LINKED)[number]
+
+export interface CategoryRepair {
+  db: DB
+  /** Categories whose parentId was corrected (parents listed before children). */
+  fixed: Category[]
+  /** Duplicate category ids that were merged away. */
+  removedIds: string[]
+  /** Records that were repointed from a removed duplicate, per collection. */
+  touched: Partial<Record<CategoryLinked, unknown[]>>
+  changed: boolean
+}
+
+/**
+ * Older data stored built-in subcategories with the parent's *name* as
+ * parentId ("Food" instead of its id). Nothing could find them under their
+ * parent, so the edit screen showed no subcategory and every save of that
+ * subcategory created a correctly-linked duplicate. This relinks them and
+ * merges the duplicates, repointing any record that used one.
+ */
+export function repairCategories(db: DB): CategoryRepair {
+  const ids = new Set(db.categories.map((c) => c.id))
+  const fixed: Category[] = []
+
+  let categories = db.categories.map((c) => {
+    if (!c.parentId || ids.has(c.parentId)) return c
+    const parent = db.categories.find((p) => !p.parentId && p.type === c.type && p.name === c.parentId)
+    if (!parent) return { ...c, parentId: null }
+    const f = { ...c, parentId: parent.id }
+    fixed.push(f)
+    return f
+  })
+
+  // Merge duplicates: parents first, so children of a merged parent are
+  // re-keyed onto the kept parent before children are compared.
+  const remap = new Map<string, string>()
+  const dedupe = (list: Category[], onlyParents: boolean) => {
+    const keep = new Map<string, string>()
+    return list.filter((c) => {
+      if (!!c.parentId === onlyParents) return true
+      const key = `${c.type}|${c.name.trim().toLowerCase()}|${c.parentId ?? ''}`
+      const kept = keep.get(key)
+      if (!kept) {
+        keep.set(key, c.id)
+        return true
+      }
+      remap.set(c.id, kept)
+      return false
+    })
+  }
+  categories = dedupe(categories, true)
+  categories = categories.map((c) => {
+    if (c.parentId && remap.has(c.parentId)) {
+      const f = { ...c, parentId: remap.get(c.parentId)! }
+      fixed.push(f)
+      return f
+    }
+    return c
+  })
+  categories = dedupe(categories, false)
+
+  const touched: CategoryRepair['touched'] = {}
+  const next: DB = { ...db, categories }
+  for (const key of CATEGORY_LINKED) {
+    const list = db[key] as Array<{ categoryId?: string | null; subcategoryId?: string | null }>
+    next[key] = list.map((r) => {
+      const cat = r.categoryId && remap.get(r.categoryId)
+      const sub = r.subcategoryId && remap.get(r.subcategoryId)
+      if (!cat && !sub) return r
+      const out = { ...r, ...(cat ? { categoryId: cat } : {}), ...(sub ? { subcategoryId: sub } : {}) }
+      ;(touched[key] ??= []).push(out)
+      return out
+    }) as never
+  }
+
+  const removedIds = [...remap.keys()]
+  const liveFixed = fixed.filter((c) => !remap.has(c.id))
+  // Parents before children so the cloud foreign key is satisfied on upsert.
+  liveFixed.sort((a, b) => Number(!!a.parentId) - Number(!!b.parentId))
+  return { db: next, fixed: liveFixed, removedIds, touched, changed: liveFixed.length > 0 || removedIds.length > 0 }
 }

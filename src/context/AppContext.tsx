@@ -15,13 +15,15 @@ import {
   ParsedTransaction,
   Source,
 } from '@/lib/types'
-import { loadDB, saveDB, defaultDB, seedData, clearDB, exportJSON, importJSON, applyDueRecurring, getLastCloudUser, setLastCloudUser } from '@/lib/store'
+import { repairCategories } from '@/lib/categories'
+import { hasSavedDB, loadDB, saveDB, defaultDB, seedData, clearDB, exportJSON, importJSON, applyDueRecurring, getLastCloudUser, setLastCloudUser } from '@/lib/store'
 import { materializeInto } from '@/lib/parser'
 import { uid, todayISO } from '@/lib/format'
 import { useAuth } from './AuthContext'
 import { useToast } from './ToastContext'
 import {
   fetchCloudDB,
+  cloudApplyCategoryRepair,
   seedCloudUser,
   cloudSyncProfile,
   cloudUpsertTransactions,
@@ -136,8 +138,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
 
   const [db, setDb] = useState<DB>(() => {
+    // Sample data only on a device's very first run — never after the user
+    // has cleared their own transactions.
+    const firstRun = !hasSavedDB()
     const d = loadDB()
-    if (d.transactions.length === 0) return applyDueRecurring(seedData(d))
+    if (firstRun) return applyDueRecurring(seedData(d))
     return applyDueRecurring(d)
   })
 
@@ -157,7 +162,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!active) return
 
         if (cloudData && (cloudData.transactions.length > 0 || cloudData.categories.length > 0)) {
-          const fresh = runRecurringAndSync(cloudData, userId)
+          const repair = repairCategories(cloudData)
+          if (repair.changed) cloudApplyCategoryRepair(repair, userId).catch(console.error)
+          const fresh = runRecurringAndSync(repair.db, userId)
           setDb(fresh)
           saveDB(fresh)
           setLastSyncedAt(new Date().toISOString())
@@ -247,7 +254,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     try {
       const cloudData = await fetchCloudDB(userId)
       if (cloudData) {
-        const merged = runRecurringAndSync(cloudData, userId)
+        const repair = repairCategories(cloudData)
+        if (repair.changed) cloudApplyCategoryRepair(repair, userId).catch(console.error)
+        const merged = runRecurringAndSync(repair.db, userId)
         setDb(merged)
         saveDB(merged)
         setLastSyncedAt(new Date().toISOString())
