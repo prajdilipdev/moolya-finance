@@ -366,17 +366,17 @@ export async function fetchCloudDB(userId: string): Promise<DB | null> {
       debtsRes,
       rulesRes,
     ] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', userId).maybeSingle(),
-      supabase.from('categories').select('*').order('created_at', { ascending: true }),
-      supabase.from('payment_methods').select('*').order('created_at', { ascending: true }),
-      supabase.from('transactions').select('*').order('transaction_date', { ascending: false }),
-      supabase.from('budgets').select('*').order('created_at', { ascending: true }),
-      supabase.from('recurring').select('*').order('created_at', { ascending: true }),
-      supabase.from('bills').select('*').order('created_at', { ascending: true }),
-      supabase.from('subscriptions').select('*').order('created_at', { ascending: true }),
-      supabase.from('goals').select('*').order('created_at', { ascending: true }),
-      supabase.from('debts').select('*').order('created_at', { ascending: true }),
-      supabase.from('user_category_rules').select('*').order('created_at', { ascending: true }),
+      supabase.from('profiles').select('*').eq('id', userId).maybeSingle().throwOnError(),
+      supabase.from('categories').select('*').order('created_at', { ascending: true }).throwOnError(),
+      supabase.from('payment_methods').select('*').order('created_at', { ascending: true }).throwOnError(),
+      supabase.from('transactions').select('*').order('transaction_date', { ascending: false }).throwOnError(),
+      supabase.from('budgets').select('*').order('created_at', { ascending: true }).throwOnError(),
+      supabase.from('recurring').select('*').order('created_at', { ascending: true }).throwOnError(),
+      supabase.from('bills').select('*').order('created_at', { ascending: true }).throwOnError(),
+      supabase.from('subscriptions').select('*').order('created_at', { ascending: true }).throwOnError(),
+      supabase.from('goals').select('*').order('created_at', { ascending: true }).throwOnError(),
+      supabase.from('debts').select('*').order('created_at', { ascending: true }).throwOnError(),
+      supabase.from('user_category_rules').select('*').order('created_at', { ascending: true }).throwOnError(),
     ])
 
     const profile = profileRes.data ? mapProfileFromDb(profileRes.data) : null
@@ -397,12 +397,12 @@ export async function fetchCloudDB(userId: string): Promise<DB | null> {
     if (categories.length === 0) {
       categories.push(...defaultCategories())
       const toDb = (cs: Category[]) => cs.map((c) => mapCategoryToDb(c, userId))
-      await supabase.from('categories').upsert(toDb(categories.filter((c) => !c.parentId)))
-      await supabase.from('categories').upsert(toDb(categories.filter((c) => c.parentId)))
+      await supabase.from('categories').upsert(toDb(categories.filter((c) => !c.parentId))).throwOnError()
+      await supabase.from('categories').upsert(toDb(categories.filter((c) => c.parentId))).throwOnError()
     }
     if (paymentMethods.length === 0) {
       paymentMethods.push(...defaultPaymentMethods())
-      await supabase.from('payment_methods').upsert(paymentMethods.map((m) => mapPaymentMethodToDb(m, userId)))
+      await supabase.from('payment_methods').upsert(paymentMethods.map((m) => mapPaymentMethodToDb(m, userId))).throwOnError()
     }
 
     return {
@@ -438,7 +438,7 @@ export async function seedCloudUser(userId: string, seed: DB): Promise<void> {
   try {
     // 1. Profile
     if (initialDb.profile) {
-      await supabase.from('profiles').upsert(mapProfileToDb(initialDb.profile))
+      await supabase.from('profiles').upsert(mapProfileToDb(initialDb.profile)).throwOnError()
     }
 
     // 2. Categories
@@ -447,56 +447,56 @@ export async function seedCloudUser(userId: string, seed: DB): Promise<void> {
       const parents = initialDb.categories.filter((c) => !c.parentId)
       const children = initialDb.categories.filter((c) => c.parentId)
       if (parents.length > 0) {
-        await supabase.from('categories').upsert(parents.map((c) => mapCategoryToDb(c, userId)))
+        await supabase.from('categories').upsert(parents.map((c) => mapCategoryToDb(c, userId))).throwOnError()
       }
       if (children.length > 0) {
-        await supabase.from('categories').upsert(children.map((c) => mapCategoryToDb(c, userId)))
+        await supabase.from('categories').upsert(children.map((c) => mapCategoryToDb(c, userId))).throwOnError()
       }
     }
 
     // 3. Payment Methods
     if (initialDb.paymentMethods.length > 0) {
-      await supabase.from('payment_methods').upsert(initialDb.paymentMethods.map((m) => mapPaymentMethodToDb(m, userId)))
+      await supabase.from('payment_methods').upsert(initialDb.paymentMethods.map((m) => mapPaymentMethodToDb(m, userId))).throwOnError()
     }
 
     // 4. Transactions
     if (initialDb.transactions.length > 0) {
-      await supabase.from('transactions').upsert(initialDb.transactions.map((t) => mapTransactionToDb(t, userId)))
+      await supabase.from('transactions').upsert(initialDb.transactions.map((t) => mapTransactionToDb(t, userId))).throwOnError()
     }
 
     // 5. Budgets
     if (initialDb.budgets.length > 0) {
-      await supabase.from('budgets').upsert(initialDb.budgets.map((b) => mapBudgetToDb(b, userId)))
+      await supabase.from('budgets').upsert(initialDb.budgets.map((b) => mapBudgetToDb(b, userId))).throwOnError()
     }
 
     // 6. Recurring
     if (initialDb.recurring.length > 0) {
-      await supabase.from('recurring').upsert(initialDb.recurring.map((r) => mapRecurringToDb(r, userId)))
+      await supabase.from('recurring').upsert(initialDb.recurring.map((r) => mapRecurringToDb(r, userId))).throwOnError()
     }
 
     // 7. Bills
     if (initialDb.bills.length > 0) {
-      await supabase.from('bills').upsert(initialDb.bills.map((b) => mapBillToDb(b, userId)))
+      await supabase.from('bills').upsert(initialDb.bills.map((b) => mapBillToDb(b, userId))).throwOnError()
     }
 
     // 8. Subscriptions
     if (initialDb.subscriptions.length > 0) {
-      await supabase.from('subscriptions').upsert(initialDb.subscriptions.map((s) => mapSubscriptionToDb(s, userId)))
+      await supabase.from('subscriptions').upsert(initialDb.subscriptions.map((s) => mapSubscriptionToDb(s, userId))).throwOnError()
     }
 
     // 9. Goals
     if (initialDb.goals.length > 0) {
-      await supabase.from('goals').upsert(initialDb.goals.map((g) => mapGoalToDb(g, userId)))
+      await supabase.from('goals').upsert(initialDb.goals.map((g) => mapGoalToDb(g, userId))).throwOnError()
     }
 
     // 10. Debts
     if (initialDb.debts.length > 0) {
-      await supabase.from('debts').upsert(initialDb.debts.map((d) => mapDebtToDb(d, userId)))
+      await supabase.from('debts').upsert(initialDb.debts.map((d) => mapDebtToDb(d, userId))).throwOnError()
     }
 
     // 11. Rules
     if (initialDb.userCategoryRules.length > 0) {
-      await supabase.from('user_category_rules').upsert(initialDb.userCategoryRules.map((r) => mapRuleToDb(r, userId)))
+      await supabase.from('user_category_rules').upsert(initialDb.userCategoryRules.map((r) => mapRuleToDb(r, userId))).throwOnError()
     }
   } catch (err) {
     console.error('Failed to seed cloud user:', err)
@@ -507,131 +507,131 @@ export async function seedCloudUser(userId: string, seed: DB): Promise<void> {
 
 export async function cloudSyncProfile(profile: Profile): Promise<void> {
   if (!supabase) return
-  await supabase.from('profiles').upsert(mapProfileToDb(profile))
+  await supabase.from('profiles').upsert(mapProfileToDb(profile)).throwOnError()
 }
 
 export async function cloudUpsertTransactions(txs: Transaction[], userId: string): Promise<void> {
   if (!supabase || txs.length === 0) return
-  await supabase.from('transactions').upsert(txs.map((t) => mapTransactionToDb(t, userId)))
+  await supabase.from('transactions').upsert(txs.map((t) => mapTransactionToDb(t, userId))).throwOnError()
 }
 
 export async function cloudDeleteTransactions(ids: string[]): Promise<void> {
   if (!supabase || ids.length === 0) return
-  await supabase.from('transactions').delete().in('id', ids)
+  await supabase.from('transactions').delete().in('id', ids).throwOnError()
 }
 
 export async function cloudUpsertBudget(budget: Budget, userId: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('budgets').upsert(mapBudgetToDb(budget, userId))
+  await supabase.from('budgets').upsert(mapBudgetToDb(budget, userId)).throwOnError()
 }
 
 export async function cloudDeleteBudget(id: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('budgets').delete().eq('id', id)
+  await supabase.from('budgets').delete().eq('id', id).throwOnError()
 }
 
 export async function cloudUpsertRecurring(recurring: Recurring, userId: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('recurring').upsert(mapRecurringToDb(recurring, userId))
+  await supabase.from('recurring').upsert(mapRecurringToDb(recurring, userId)).throwOnError()
 }
 
 export async function cloudDeleteRecurring(id: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('recurring').delete().eq('id', id)
+  await supabase.from('recurring').delete().eq('id', id).throwOnError()
 }
 
 export async function cloudUpsertBill(bill: Bill, userId: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('bills').upsert(mapBillToDb(bill, userId))
+  await supabase.from('bills').upsert(mapBillToDb(bill, userId)).throwOnError()
 }
 
 export async function cloudDeleteBill(id: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('bills').delete().eq('id', id)
+  await supabase.from('bills').delete().eq('id', id).throwOnError()
 }
 
 export async function cloudUpsertSubscription(subscription: Subscription, userId: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('subscriptions').upsert(mapSubscriptionToDb(subscription, userId))
+  await supabase.from('subscriptions').upsert(mapSubscriptionToDb(subscription, userId)).throwOnError()
 }
 
 export async function cloudDeleteSubscription(id: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('subscriptions').delete().eq('id', id)
+  await supabase.from('subscriptions').delete().eq('id', id).throwOnError()
 }
 
 export async function cloudUpsertGoal(goal: Goal, userId: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('goals').upsert(mapGoalToDb(goal, userId))
+  await supabase.from('goals').upsert(mapGoalToDb(goal, userId)).throwOnError()
 }
 
 export async function cloudDeleteGoal(id: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('goals').delete().eq('id', id)
+  await supabase.from('goals').delete().eq('id', id).throwOnError()
 }
 
 export async function cloudUpsertDebt(debt: Debt, userId: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('debts').upsert(mapDebtToDb(debt, userId))
+  await supabase.from('debts').upsert(mapDebtToDb(debt, userId)).throwOnError()
 }
 
 export async function cloudDeleteDebt(id: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('debts').delete().eq('id', id)
+  await supabase.from('debts').delete().eq('id', id).throwOnError()
 }
 
 export async function cloudUpsertCategory(category: Category, userId: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('categories').upsert(mapCategoryToDb(category, userId))
+  await supabase.from('categories').upsert(mapCategoryToDb(category, userId)).throwOnError()
 }
 
 /** Writes a local category repair back to the cloud: relinked categories, repointed records, then removes the merged duplicates. */
 export async function cloudApplyCategoryRepair(r: CategoryRepair, userId: string): Promise<void> {
   if (!supabase || !r.changed) return
-  if (r.fixed.length) await supabase.from('categories').upsert(r.fixed.map((c) => mapCategoryToDb(c, userId)))
+  if (r.fixed.length) await supabase.from('categories').upsert(r.fixed.map((c) => mapCategoryToDb(c, userId))).throwOnError()
   const t = r.touched
-  if (t.transactions?.length) await supabase.from('transactions').upsert((t.transactions as Transaction[]).map((x) => mapTransactionToDb(x, userId)))
-  if (t.budgets?.length) await supabase.from('budgets').upsert((t.budgets as Budget[]).map((x) => mapBudgetToDb(x, userId)))
-  if (t.recurring?.length) await supabase.from('recurring').upsert((t.recurring as Recurring[]).map((x) => mapRecurringToDb(x, userId)))
-  if (t.bills?.length) await supabase.from('bills').upsert((t.bills as Bill[]).map((x) => mapBillToDb(x, userId)))
-  if (t.subscriptions?.length) await supabase.from('subscriptions').upsert((t.subscriptions as Subscription[]).map((x) => mapSubscriptionToDb(x, userId)))
-  if (t.debts?.length) await supabase.from('debts').upsert((t.debts as Debt[]).map((x) => mapDebtToDb(x, userId)))
-  if (t.userCategoryRules?.length) await supabase.from('user_category_rules').upsert((t.userCategoryRules as UserCategoryRule[]).map((x) => mapRuleToDb(x, userId)))
-  if (r.removedIds.length) await supabase.from('categories').delete().in('id', r.removedIds)
+  if (t.transactions?.length) await supabase.from('transactions').upsert((t.transactions as Transaction[]).map((x) => mapTransactionToDb(x, userId))).throwOnError()
+  if (t.budgets?.length) await supabase.from('budgets').upsert((t.budgets as Budget[]).map((x) => mapBudgetToDb(x, userId))).throwOnError()
+  if (t.recurring?.length) await supabase.from('recurring').upsert((t.recurring as Recurring[]).map((x) => mapRecurringToDb(x, userId))).throwOnError()
+  if (t.bills?.length) await supabase.from('bills').upsert((t.bills as Bill[]).map((x) => mapBillToDb(x, userId))).throwOnError()
+  if (t.subscriptions?.length) await supabase.from('subscriptions').upsert((t.subscriptions as Subscription[]).map((x) => mapSubscriptionToDb(x, userId))).throwOnError()
+  if (t.debts?.length) await supabase.from('debts').upsert((t.debts as Debt[]).map((x) => mapDebtToDb(x, userId))).throwOnError()
+  if (t.userCategoryRules?.length) await supabase.from('user_category_rules').upsert((t.userCategoryRules as UserCategoryRule[]).map((x) => mapRuleToDb(x, userId))).throwOnError()
+  if (r.removedIds.length) await supabase.from('categories').delete().in('id', r.removedIds).throwOnError()
 }
 
 export async function cloudDeleteCategory(id: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('categories').delete().eq('id', id)
+  await supabase.from('categories').delete().eq('id', id).throwOnError()
 }
 
 export async function cloudUpsertPaymentMethod(pm: PaymentMethod, userId: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('payment_methods').upsert(mapPaymentMethodToDb(pm, userId))
+  await supabase.from('payment_methods').upsert(mapPaymentMethodToDb(pm, userId)).throwOnError()
 }
 
 export async function cloudUpsertRule(rule: UserCategoryRule, userId: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('user_category_rules').upsert(mapRuleToDb(rule, userId))
+  await supabase.from('user_category_rules').upsert(mapRuleToDb(rule, userId)).throwOnError()
 }
 
 export async function cloudDeleteRule(id: string): Promise<void> {
   if (!supabase) return
-  await supabase.from('user_category_rules').delete().eq('id', id)
+  await supabase.from('user_category_rules').delete().eq('id', id).throwOnError()
 }
 
 export async function cloudClearAllData(userId: string): Promise<void> {
   if (!supabase) return
   await Promise.all([
-    supabase.from('transactions').delete().eq('user_id', userId),
-    supabase.from('budgets').delete().eq('user_id', userId),
-    supabase.from('recurring').delete().eq('user_id', userId),
-    supabase.from('bills').delete().eq('user_id', userId),
-    supabase.from('subscriptions').delete().eq('user_id', userId),
-    supabase.from('goals').delete().eq('user_id', userId),
-    supabase.from('debts').delete().eq('user_id', userId),
-    supabase.from('user_category_rules').delete().eq('user_id', userId),
-    supabase.from('categories').delete().eq('user_id', userId),
-    supabase.from('payment_methods').delete().eq('user_id', userId),
+    supabase.from('transactions').delete().eq('user_id', userId).throwOnError(),
+    supabase.from('budgets').delete().eq('user_id', userId).throwOnError(),
+    supabase.from('recurring').delete().eq('user_id', userId).throwOnError(),
+    supabase.from('bills').delete().eq('user_id', userId).throwOnError(),
+    supabase.from('subscriptions').delete().eq('user_id', userId).throwOnError(),
+    supabase.from('goals').delete().eq('user_id', userId).throwOnError(),
+    supabase.from('debts').delete().eq('user_id', userId).throwOnError(),
+    supabase.from('user_category_rules').delete().eq('user_id', userId).throwOnError(),
+    supabase.from('categories').delete().eq('user_id', userId).throwOnError(),
+    supabase.from('payment_methods').delete().eq('user_id', userId).throwOnError(),
   ])
 }

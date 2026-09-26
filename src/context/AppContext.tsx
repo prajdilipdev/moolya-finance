@@ -100,6 +100,11 @@ interface AppContextValue {
 
 const AppContext = createContext<AppContextValue | null>(null)
 
+// Cloud writes are fire-and-forget; AppProvider points this at a toast so a
+// rejected save is visible instead of vanishing on the next reload.
+let notifyCloudError: (err: unknown) => void = console.error
+const cloudError = (err: unknown) => notifyCloudError(err)
+
 /**
  * Runs the recurring auto-create engine and, for signed-in users, pushes
  * whatever it produced up to Supabase.
@@ -122,11 +127,11 @@ function runRecurringAndSync(db: DB, userId: string | null): DB {
   const createdCount = result.transactions.length - beforeCount
   if (createdCount > 0) {
     const created = result.transactions.slice(0, createdCount)
-    cloudUpsertTransactions(created, userId).catch(console.error)
+    cloudUpsertTransactions(created, userId).catch(cloudError)
   }
   const changedRecurring = result.recurring.filter((r) => beforeDue.get(r.id) !== r.nextDueDate)
   if (changedRecurring.length > 0) {
-    Promise.all(changedRecurring.map((r) => cloudUpsertRecurring(r, userId))).catch(console.error)
+    Promise.all(changedRecurring.map((r) => cloudUpsertRecurring(r, userId))).catch(cloudError)
   }
   return result
 }
@@ -134,6 +139,15 @@ function runRecurringAndSync(db: DB, userId: string | null): DB {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const { user, enabled: authEnabled } = useAuth()
   const { toast } = useToast()
+  useEffect(() => {
+    notifyCloudError = (err) => {
+      console.error(err)
+      toast({ title: 'Not saved to cloud', message: 'A change could not be saved. Try Sync Now.', tone: 'error' })
+    }
+    return () => {
+      notifyCloudError = console.error
+    }
+  }, [toast])
   const [syncing, setSyncing] = useState(false)
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null)
 
@@ -163,7 +177,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
         if (cloudData && (cloudData.transactions.length > 0 || cloudData.categories.length > 0)) {
           const repair = repairCategories(cloudData)
-          if (repair.changed) cloudApplyCategoryRepair(repair, userId).catch(console.error)
+          if (repair.changed) cloudApplyCategoryRepair(repair, userId).catch(cloudError)
           const fresh = runRecurringAndSync(repair.db, userId)
           setDb(fresh)
           saveDB(fresh)
@@ -255,7 +269,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const cloudData = await fetchCloudDB(userId)
       if (cloudData) {
         const repair = repairCategories(cloudData)
-        if (repair.changed) cloudApplyCategoryRepair(repair, userId).catch(console.error)
+        if (repair.changed) cloudApplyCategoryRepair(repair, userId).catch(cloudError)
         const merged = runRecurringAndSync(repair.db, userId)
         setDb(merged)
         saveDB(merged)
@@ -291,7 +305,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
       })
       if (updatedProfile && userId) {
-        cloudSyncProfile(updatedProfile).catch(console.error)
+        cloudSyncProfile(updatedProfile).catch(cloudError)
       }
     },
     [update, userId]
@@ -310,7 +324,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       update((d) => ({ ...d, transactions: [...items, ...d.transactions] }))
 
       if (userId && items.length > 0) {
-        cloudUpsertTransactions(items, userId).catch(console.error)
+        cloudUpsertTransactions(items, userId).catch(cloudError)
       }
       return ids
     },
@@ -380,10 +394,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (userId) {
         if (newCategories.length > 0) {
-          Promise.all(newCategories.map((c) => cloudUpsertCategory(c, userId))).catch(console.error)
+          Promise.all(newCategories.map((c) => cloudUpsertCategory(c, userId))).catch(cloudError)
         }
         if (createdTransactions.length > 0) {
-          cloudUpsertTransactions(createdTransactions, userId).catch(console.error)
+          cloudUpsertTransactions(createdTransactions, userId).catch(cloudError)
         }
       }
       return { added: createdTransactions.length, skipped: skippedCount }
@@ -405,7 +419,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }),
       }))
       if (userId && updated) {
-        cloudUpsertTransactions([updated], userId).catch(console.error)
+        cloudUpsertTransactions([updated], userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -416,7 +430,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const set = new Set(ids)
       update((d) => ({ ...d, transactions: d.transactions.filter((t) => !set.has(t.id)) }))
       if (userId && ids.length > 0) {
-        cloudDeleteTransactions(ids).catch(console.error)
+        cloudDeleteTransactions(ids).catch(cloudError)
       }
     },
     [update, userId]
@@ -453,7 +467,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ...d, budgets: [...d.budgets, nb] }
       })
       if (userId && savedBudget) {
-        cloudUpsertBudget(savedBudget, userId).catch(console.error)
+        cloudUpsertBudget(savedBudget, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -463,7 +477,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       update((d) => ({ ...d, budgets: d.budgets.filter((x) => x.id !== id) }))
       if (userId) {
-        cloudDeleteBudget(id).catch(console.error)
+        cloudDeleteBudget(id).catch(cloudError)
       }
     },
     [update, userId]
@@ -506,7 +520,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ...d, recurring: [...d.recurring, nr] }
       })
       if (userId && savedRecurring) {
-        cloudUpsertRecurring(savedRecurring, userId).catch(console.error)
+        cloudUpsertRecurring(savedRecurring, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -516,7 +530,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       update((d) => ({ ...d, recurring: d.recurring.filter((x) => x.id !== id) }))
       if (userId) {
-        cloudDeleteRecurring(id).catch(console.error)
+        cloudDeleteRecurring(id).catch(cloudError)
       }
     },
     [update, userId]
@@ -554,7 +568,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ...d, bills: [...d.bills, nb] }
       })
       if (userId && savedBill) {
-        cloudUpsertBill(savedBill, userId).catch(console.error)
+        cloudUpsertBill(savedBill, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -564,7 +578,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       update((d) => ({ ...d, bills: d.bills.filter((x) => x.id !== id) }))
       if (userId) {
-        cloudDeleteBill(id).catch(console.error)
+        cloudDeleteBill(id).catch(cloudError)
       }
     },
     [update, userId]
@@ -584,7 +598,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }),
       }))
       if (userId && updatedBill) {
-        cloudUpsertBill(updatedBill, userId).catch(console.error)
+        cloudUpsertBill(updatedBill, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -621,7 +635,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ...d, subscriptions: [...d.subscriptions, ns] }
       })
       if (userId && savedSub) {
-        cloudUpsertSubscription(savedSub, userId).catch(console.error)
+        cloudUpsertSubscription(savedSub, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -631,7 +645,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       update((d) => ({ ...d, subscriptions: d.subscriptions.filter((x) => x.id !== id) }))
       if (userId) {
-        cloudDeleteSubscription(id).catch(console.error)
+        cloudDeleteSubscription(id).catch(cloudError)
       }
     },
     [update, userId]
@@ -666,7 +680,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ...d, goals: [...d.goals, ng] }
       })
       if (userId && savedGoal) {
-        cloudUpsertGoal(savedGoal, userId).catch(console.error)
+        cloudUpsertGoal(savedGoal, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -676,7 +690,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       update((d) => ({ ...d, goals: d.goals.filter((x) => x.id !== id) }))
       if (userId) {
-        cloudDeleteGoal(id).catch(console.error)
+        cloudDeleteGoal(id).catch(cloudError)
       }
     },
     [update, userId]
@@ -696,7 +710,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }),
       }))
       if (userId && updatedGoal) {
-        cloudUpsertGoal(updatedGoal, userId).catch(console.error)
+        cloudUpsertGoal(updatedGoal, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -734,7 +748,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ...d, debts: [...d.debts, nd] }
       })
       if (userId && savedDebt) {
-        cloudUpsertDebt(savedDebt, userId).catch(console.error)
+        cloudUpsertDebt(savedDebt, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -744,7 +758,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       update((d) => ({ ...d, debts: d.debts.filter((x) => x.id !== id) }))
       if (userId) {
-        cloudDeleteDebt(id).catch(console.error)
+        cloudDeleteDebt(id).catch(cloudError)
       }
     },
     [update, userId]
@@ -769,7 +783,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ...d, categories: [...d.categories, nc] }
       })
       if (userId && savedCategory) {
-        cloudUpsertCategory(savedCategory, userId).catch(console.error)
+        cloudUpsertCategory(savedCategory, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -779,7 +793,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       update((d) => ({ ...d, categories: d.categories.filter((x) => x.id !== id) }))
       if (userId) {
-        cloudDeleteCategory(id).catch(console.error)
+        cloudDeleteCategory(id).catch(cloudError)
       }
     },
     [update, userId]
@@ -804,7 +818,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return { ...d, paymentMethods: [...d.paymentMethods, np] }
       })
       if (userId && savedPm) {
-        cloudUpsertPaymentMethod(savedPm, userId).catch(console.error)
+        cloudUpsertPaymentMethod(savedPm, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -815,7 +829,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const nr: UserCategoryRule = { ...rule, id: uid('rule_') }
       update((d) => ({ ...d, userCategoryRules: [...d.userCategoryRules, nr] }))
       if (userId) {
-        cloudUpsertRule(nr, userId).catch(console.error)
+        cloudUpsertRule(nr, userId).catch(cloudError)
       }
     },
     [update, userId]
@@ -825,7 +839,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (id: string) => {
       update((d) => ({ ...d, userCategoryRules: d.userCategoryRules.filter((x) => x.id !== id) }))
       if (userId) {
-        cloudDeleteRule(id).catch(console.error)
+        cloudDeleteRule(id).catch(cloudError)
       }
     },
     [update, userId]
@@ -835,7 +849,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const seeded = seedData({ ...defaultDB(), profile: db.profile })
     update(() => seeded)
     if (userId) {
-      seedCloudUser(userId, seeded).catch(console.error)
+      seedCloudUser(userId, seeded).catch(cloudError)
     }
   }, [update, db.profile, userId])
 
@@ -845,7 +859,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     if (userId) {
       cloudClearAllData(userId)
         .then(() => seedCloudUser(userId, seeded))
-        .catch(console.error)
+        .catch(cloudError)
     }
   }, [update, userId])
 
@@ -853,7 +867,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     (ndb: DB) => {
       setDb(ndb)
       if (userId) {
-        seedCloudUser(userId, ndb).catch(console.error)
+        seedCloudUser(userId, ndb).catch(cloudError)
       }
     },
     [userId]
