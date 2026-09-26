@@ -306,6 +306,26 @@ export function parseLine(
   if (pmMatch) {
     paymentMethod = pmMatch[1].trim()
     text = text.replace(pmMatch[0], ' ').trim()
+  } else {
+    // Plain wording: "via upi", "by cash", "paid with credit card", "gpay".
+    const pmWords: [RegExp, string][] = [
+      [/upi|gpay|google pay|phonepe|paytm|bhim/, 'UPI'],
+      [/cash/, 'Cash'],
+      [/credit card|cc/, 'Credit Card'],
+      [/debit card|dc/, 'Debit Card'],
+      [/card/, 'Debit Card'],
+      [/net ?banking|neft|imps|rtgs|bank transfer/, 'Bank'],
+    ]
+    for (const [re, name] of pmWords) {
+      // UPI app names stand alone; "cash"/"card" need a "via/by/…" so "credit card bill" stays a bill.
+      const prefix = `(?:\\b(?:paid\\s+)?(?:via|by|through|using|with|on|in)\\s+)${name === 'UPI' ? '?' : ''}`
+      const m = text.match(new RegExp(`${prefix}\\b(?:${re.source})\\b`, 'i'))
+      if (m) {
+        paymentMethod = name
+        text = text.replace(m[0], ' ').replace(/\s+/g, ' ').trim()
+        break
+      }
+    }
   }
 
   // Category override #Food or #Food/Street
