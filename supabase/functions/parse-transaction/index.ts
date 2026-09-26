@@ -30,7 +30,6 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 const MODELS = [
   'inclusionai/ling-3.0-flash-fin:free',
   'inclusionai/ling-3.0-flash-sante:free',
-  'nex-agi/nex-n2.5-mini:free',
 ]
 // Free models are either fast (~2s) or stuck in a queue; move on quickly.
 const MODEL_TIMEOUT_MS = 6_000
