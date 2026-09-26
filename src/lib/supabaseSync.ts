@@ -391,11 +391,25 @@ export async function fetchCloudDB(userId: string): Promise<DB | null> {
     const debts = (debtsRes.data || []).map(mapDebtFromDb)
     const userCategoryRules = (rulesRes.data || []).map(mapRuleFromDb)
 
+    // After "clear all data" the cloud has no categories/payment methods. Fall
+    // back to the defaults AND write them back, or every new transaction's
+    // foreign key points at a row that only exists locally and the insert fails.
+    if (categories.length === 0) {
+      categories.push(...defaultCategories())
+      const toDb = (cs: Category[]) => cs.map((c) => mapCategoryToDb(c, userId))
+      await supabase.from('categories').upsert(toDb(categories.filter((c) => !c.parentId)))
+      await supabase.from('categories').upsert(toDb(categories.filter((c) => c.parentId)))
+    }
+    if (paymentMethods.length === 0) {
+      paymentMethods.push(...defaultPaymentMethods())
+      await supabase.from('payment_methods').upsert(paymentMethods.map((m) => mapPaymentMethodToDb(m, userId)))
+    }
+
     return {
       version: 1,
       profile,
-      categories: categories.length > 0 ? categories : defaultCategories(),
-      paymentMethods: paymentMethods.length > 0 ? paymentMethods : defaultPaymentMethods(),
+      categories,
+      paymentMethods,
       transactions,
       budgets,
       recurring,
