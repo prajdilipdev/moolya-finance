@@ -192,6 +192,8 @@ async function askModels(apiKey: string, messages: Message[]): Promise<unknown |
       if (!res.ok) {
         // Log the provider's message, never the key, never to the client.
         console.error('openrouter', model, res.status, (await res.text()).slice(0, 300))
+        // Bad key or no credit: every model will fail the same way — next key.
+        if (res.status === 401 || res.status === 402 || res.status === 403) return null
         continue
       }
       const payload = await res.json().catch(() => null)
@@ -205,14 +207,39 @@ async function askModels(apiKey: string, messages: Message[]): Promise<unknown |
   return null
 }
 
+/**
+ * The caller's own OpenRouter keys, newest first. The key column is not
+ * granted to browser roles, so this reads it with the service role — scoped
+ * to the JWT's user id, which the platform has already verified.
+ */
+async function userKeys(req: Request): Promise<string[]> {
+  const url = Deno.env.get('SUPABASE_URL')
+  const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+  const jwt = req.headers.get('Authorization')?.replace(/^Bearer /, '') ?? ''
+  let sub = ''
+  try {
+    sub = JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).sub ?? ''
+  } catch { /* no usable claims → server key only */ }
+  if (!url || !service || !/^[0-9a-f-]{36}$/.test(sub)) return []
+  try {
+    const res = await fetch(`${url}/rest/v1/openrouter_keys?user_id=eq.${sub}&select=key&order=created_at.desc&limit=10`, {
+      headers: { apikey: service, Authorization: `Bearer ${service}` },
+    })
+    if (!res.ok) return []
+    return ((await res.json()) as { key: string }[]).map((r) => r.key)
+  } catch {
+    return []
+  }
+}
+
 export default {
   // auth: 'user' rejects anything without a valid user JWT before we get here,
   // so reaching this body means the caller is signed in.
   fetch: withSupabase({ auth: 'user' }, async (req: Request) => {
     if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
-    const apiKey = Deno.env.get('OPENROUTER_API_KEY')
-    if (!apiKey) return json({ error: 'AI is not configured on the server.' }, 501)
+    const apiKeys = [...(await userKeys(req)), Deno.env.get('OPENROUTER_API_KEY')].filter((k): k is string => !!k)
+    if (apiKeys.length === 0) return json({ error: 'AI is not configured on the server.' }, 501)
 
     let body: { text?: unknown; categories?: unknown; type?: unknown }
     try {
@@ -236,10 +263,15 @@ export default {
 
     const today = new Date().toISOString().slice(0, 10)
 
-    const parsed = await askModels(apiKey, [
+    const messages: Message[] = [
       { role: 'system', content: systemPrompt(categories, today, forcedType) },
       { role: 'user', content: text },
-    ])
+    ]
+    let parsed: unknown | null = null
+    for (const key of apiKeys) {
+      parsed = await askModels(key, messages)
+      if (parsed !== null) break
+    }
     if (parsed === null) return json({ error: 'No AI model produced a usable answer.' }, 502)
     const list = (parsed as { transactions?: unknown })?.transactions
     const transactions = (Array.isArray(list) ? list : [])

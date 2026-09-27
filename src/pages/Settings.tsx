@@ -8,6 +8,7 @@ import { downloadFile, formatDate } from '@/lib/format'
 import { Segmented, Field } from '@/components/ui/Misc'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils'
+import { AiKeys } from '@/components/AiKeys'
 
 export function Settings() {
   const {
@@ -251,20 +252,7 @@ export function Settings() {
         </div>
       )}
 
-      {tab === 'ai' && (
-        <div className="max-w-lg card p-5">
-          <h3 className="mb-2 text-sm font-bold">AI &amp; Smart Parser</h3>
-          <p className="mb-4 text-sm text-base-muted">
-            Moolya uses a fast local parser by default for common formats (e.g. <code className="rounded bg-base/5 px-1">200rs pav bhaji</code>, <code className="rounded bg-base/5 px-1">25k salary</code>). For complex sentences it can use your own AI provider — configured server-side only.
-          </p>
-          <div className="space-y-2 rounded-xl bg-base/5 p-4 text-sm">
-            <div><code className="font-mono text-xs">AI_PROVIDER=openai</code></div>
-            <div><code className="font-mono text-xs">AI_MODEL=gpt-4o-mini</code></div>
-            <div><code className="font-mono text-xs">AI_API_KEY=••••</code></div>
-          </div>
-          <p className="mt-3 text-xs text-base-muted">Keys are never exposed to the browser. The parser abstraction makes swapping providers easy. AI output is validated by a strict schema before it reaches the database.</p>
-        </div>
-      )}
+      {tab === 'ai' && <AiKeys />}
 
       {tab === 'data' && (
         <div className="max-w-lg space-y-4">
