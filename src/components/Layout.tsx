@@ -287,9 +287,9 @@ export function Layout() {
           <button
             onClick={() => setQuickAdd(true)}
             aria-label="Add transaction"
-            className="-mt-9 flex h-[58px] w-[58px] items-center justify-center rounded-[20px] bg-accent-fill text-white shadow-[0_10px_24px_-8px_hsl(var(--accent)/0.7)] ring-4 ring-[hsl(var(--bg))] transition-transform active:scale-95"
+            className="-mt-6 flex h-12 w-12 items-center justify-center rounded-[16px] bg-accent-fill text-white shadow-[0_8px_18px_-8px_hsl(var(--accent)/0.6)] ring-4 ring-[hsl(var(--bg))] transition-transform active:scale-95"
           >
-            <Plus className="h-7 w-7" strokeWidth={2.4} />
+            <Plus className="h-6 w-6" strokeWidth={2.25} />
           </button>
         </div>
         {MOBILE.slice(2).map((item) => <TabLink key={item.to} item={item} />)}
