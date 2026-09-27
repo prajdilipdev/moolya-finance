@@ -9,6 +9,7 @@ import { Segmented, Field } from '@/components/ui/Misc'
 import { Icon } from '@/components/ui/Icon'
 import { cn } from '@/lib/utils'
 import { AiKeys } from '@/components/AiKeys'
+import { ProfilePhoto } from '@/components/ProfilePhoto'
 
 export function Settings() {
   const {
@@ -79,6 +80,7 @@ export function Settings() {
         <div className="max-w-lg space-y-4">
           <div className="card p-5">
             <h3 className="mb-3 text-sm font-bold">Profile Details</h3>
+            <ProfilePhoto />
             <div className="space-y-3">
               <Field label="Name"><input defaultValue={p?.name} onChange={(e) => updateProfile({ name: e.target.value })} className="input" /></Field>
               <Field label="Email"><input defaultValue={p?.email} onChange={(e) => updateProfile({ email: e.target.value })} className="input" /></Field>

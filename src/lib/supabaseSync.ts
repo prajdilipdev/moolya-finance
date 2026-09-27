@@ -29,6 +29,7 @@ function mapProfileFromDb(row: any): Profile {
     onboarded: Boolean(row.onboarded),
     monthlyIncome: row.monthly_income != null ? Number(row.monthly_income) : null,
     initialBalance: row.initial_balance != null ? Number(row.initial_balance) : null,
+    avatarUrl: row.avatar_url || null,
     createdAt: row.created_at || new Date().toISOString(),
   }
 }
@@ -44,6 +45,7 @@ function mapProfileToDb(p: Profile) {
     onboarded: p.onboarded,
     monthly_income: p.monthlyIncome,
     initial_balance: p.initialBalance ?? null,
+    avatar_url: p.avatarUrl ?? null,
   }
 }
 

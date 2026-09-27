@@ -11,6 +11,7 @@ export interface Profile {
   onboarded: boolean
   monthlyIncome?: number | null
   initialBalance?: number | null
+  avatarUrl?: string | null
   createdAt: string
 }
 

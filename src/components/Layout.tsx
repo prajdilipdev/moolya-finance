@@ -12,9 +12,9 @@ import { CommandPalette } from './CommandPalette'
 import { PeriodSelector } from './PeriodSelector'
 import { QuickAdd } from './QuickAdd'
 import { Onboarding } from './Onboarding'
+import { Avatar } from './ProfilePhoto'
 import { Modal } from './ui/Modal'
 import { cn } from '@/lib/utils'
-import { initials } from '@/lib/format'
 
 type NavItem = { to: string; label: string; icon: React.ComponentType<{ className?: string }>; end?: boolean }
 
@@ -187,9 +187,7 @@ export function Layout() {
   const userCard = (onSignOut: () => void) =>
     auth.enabled && auth.user ? (
       <div className="flex items-center gap-2.5 rounded-[14px] bg-card-muted/70 p-2.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-fill text-[11px] font-bold text-white">
-          {initials(userName)}
-        </span>
+        <Avatar name={userName} url={db.profile?.avatarUrl} className="h-9 w-9 text-[11px]" />
         <div className="min-w-0 flex-1">
           <div className="truncate text-[13px] font-semibold">{db.profile?.name || 'Signed in'}</div>
           <div className="truncate text-[11px] text-base-muted" title={auth.user.email}>{auth.user.email}</div>
