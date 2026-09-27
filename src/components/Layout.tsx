@@ -261,6 +261,11 @@ export function Layout() {
               <button onClick={() => setQuickAdd(true)} className="btn-primary hidden !min-h-[40px] text-xs md:inline-flex lg:hidden">
                 <Plus className="h-4 w-4" /> Add
               </button>
+              {auth.enabled && auth.user && (
+                <NavLink to="/settings" aria-label="Account settings" className="rounded-full focus-visible:ring-2 focus-visible:ring-accent/50 lg:hidden">
+                  <Avatar name={userName} url={db.profile?.avatarUrl} className="h-9 w-9 text-[11px]" />
+                </NavLink>
+              )}
             </div>
           </div>
         </header>
