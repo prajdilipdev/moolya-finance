@@ -34,16 +34,29 @@ function categoryTree(categories: Category[]): { name: string; subs: string[] }[
   return [...tree].map(([name, subs]) => ({ name, subs: [...subs] }))
 }
 
+/** App actions the AI can ask for; names are already checked server-side against what we sent. */
+export type AIAction =
+  | { kind: 'goal_contribution'; goal: string; amount: number }
+  | { kind: 'bill_paid'; bill: string }
+  | { kind: 'set_budget'; category: string; amount: number }
+
+export interface AIResult {
+  transactions: ParsedTransaction[]
+  actions: AIAction[]
+}
+
 /**
- * Returns parsed transactions, or null when AI is unavailable, not deployed,
- * or produced nothing usable. Never throws — callers fall back to local parsing.
+ * Returns transactions and app actions, or null when AI is unavailable, not
+ * deployed, or produced nothing usable. Never throws — callers fall back to
+ * local parsing.
  */
 export async function parseWithAI(
   text: string,
   categories: Category[],
   /** Set when the user picked Expense or Income — the model must use it. */
-  type?: TransactionType
-): Promise<ParsedTransaction[] | null> {
+  type?: TransactionType,
+  names: { goals: string[]; bills: string[] } = { goals: [], bills: [] }
+): Promise<AIResult | null> {
   if (!supabase) return null
   const {
     data: { session },
@@ -52,7 +65,7 @@ export async function parseWithAI(
 
   try {
     const { data, error } = await supabase.functions.invoke('parse-transaction', {
-      body: { text, categories: categoryTree(categories), type },
+      body: { text, categories: categoryTree(categories), type, goals: names.goals, bills: names.bills },
     })
     if (error) {
       const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
@@ -61,9 +74,11 @@ export async function parseWithAI(
       return null
     }
     aiNeedsKey = false
-    const list = (data as { transactions?: unknown } | null)?.transactions
-    if (!Array.isArray(list) || list.length === 0) return null
-    return list as ParsedTransaction[]
+    const d = data as { transactions?: unknown; actions?: unknown } | null
+    const transactions = Array.isArray(d?.transactions) ? (d.transactions as ParsedTransaction[]) : []
+    const actions = Array.isArray(d?.actions) ? (d.actions as AIAction[]) : []
+    if (transactions.length === 0 && actions.length === 0) return null
+    return { transactions, actions }
   } catch (e) {
     console.warn('[ai] parse-transaction unreachable:', e)
     return null

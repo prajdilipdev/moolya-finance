@@ -4,7 +4,7 @@ import { Sparkles, Loader2, Check, X, Calculator, Plus, ArrowUpRight, ArrowDownR
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { parseBlock, parseLine, tryCalculator } from '@/lib/parser'
-import { isAIAvailable, parseWithAI, aiNeedsKey } from '@/lib/ai'
+import { isAIAvailable, parseWithAI, aiNeedsKey, type AIAction } from '@/lib/ai'
 import { ParsedTransaction, TransactionType } from '@/lib/types'
 import { money } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -51,7 +51,7 @@ export function QuickAdd({
   /** What to assume when typed text has no explicit income/expense signal — e.g. opened from the Income page. */
   defaultType?: TransactionType
 }) {
-  const { db, addParsedTransactions } = useApp()
+  const { db, addParsedTransactions, contributeGoal, toggleBillPaid, upsertBudget } = useApp()
   const { toast } = useToast()
   const [text, setText] = useState('')
   const [mode, setMode] = useState<Mode>(defaultType ?? 'auto')
@@ -120,6 +120,34 @@ export function QuickAdd({
     setStage('success')
   }
 
+  /** Carries out the AI's app actions; returns a line per action for the toast. */
+  const runActions = (actions: AIAction[]): string[] => {
+    const done: string[] = []
+    for (const a of actions) {
+      if (a.kind === 'goal_contribution') {
+        const g = db.goals.find((x) => x.name === a.goal)
+        if (!g) continue
+        contributeGoal(g.id, a.amount)
+        done.push(`${money(a.amount)} added to ${g.name}`)
+      } else if (a.kind === 'bill_paid') {
+        const b = db.bills.find((x) => x.name === a.bill)
+        if (!b) continue
+        if (!b.paid) toggleBillPaid(b.id)
+        done.push(`${b.name} marked paid`)
+      } else if (a.kind === 'set_budget') {
+        const cat = a.category === 'Overall' ? null : db.categories.find((c) => c.name === a.category && !c.parentId)
+        if (cat === undefined) continue
+        const existing = db.budgets.find((x) => (cat ? x.categoryId === cat.id : x.type === 'overall') && x.period === 'monthly')
+        upsertBudget({
+          ...(existing ? { id: existing.id } : { name: cat ? cat.name : 'Overall', type: cat ? 'category' : 'overall', categoryId: cat?.id ?? null, period: 'monthly', rollover: false }),
+          amount: a.amount,
+        })
+        done.push(`${cat ? cat.name : 'Overall'} budget set to ${money(a.amount)}/month`)
+      }
+    }
+    return done
+  }
+
   /**
    * The local parser runs first and handles every documented format instantly
    * and offline. AI is only consulted when it can actually add something.
@@ -136,7 +164,14 @@ export function QuickAdd({
     // Low confidence includes anything the keyword rules couldn't place
     // ("Other"), so unknown items like "dabeli" get categorised by the AI.
     const lowConfidence = parsed.length > 0 && parsed.every((p) => p.confidence < 0.6)
-    const worthAsking = isAIAvailable() && (parsed.length === 0 || lowConfidence)
+    // Anything about goals, bills or budgets needs the AI to pick the action —
+    // the local parser would otherwise record "1000 emergency fund add" as spending.
+    const lower = text.toLowerCase()
+    const nameHit = [...db.goals, ...db.bills].some((x) =>
+      x.name.toLowerCase().split(/\s+/).some((w) => w.length >= 4 && !['bill', 'fund', 'goal'].includes(w) && lower.includes(w))
+    )
+    const mentionsApp = nameHit || /\b(budget|goal|bill|saving|savings)\b/.test(lower)
+    const worthAsking = isAIAvailable() && (parsed.length === 0 || lowConfidence || mentionsApp)
 
     if (parsed.length === 0 && !worthAsking) {
       setErrorFlash(true)
@@ -149,10 +184,25 @@ export function QuickAdd({
     setStage('parsing')
 
     if (worthAsking) {
-      const ai = await parseWithAI(text, db.categories, forced)
-      if (ai && ai.length > 0) {
-        executeSave(keepUserWording(ai, parsed).map((p) => applyMode(p, mode)))
-        return
+      const ai = await parseWithAI(text, db.categories, forced, {
+        goals: db.goals.map((g) => g.name),
+        bills: db.bills.map((b) => b.name),
+      })
+      if (ai) {
+        const done = runActions(ai.actions)
+        if (ai.transactions.length > 0) {
+          // Only reuse local wording when the AI saw the same single entry.
+          const local = done.length ? [] : parsed
+          executeSave(keepUserWording(ai.transactions, local).map((p) => applyMode(p, mode)))
+          if (done.length) toast({ title: 'Also done', message: done.join(' · '), tone: 'success' })
+          return
+        }
+        if (done.length) {
+          toast({ title: done.length > 1 ? 'Done' : 'Done', message: done.join(' · '), tone: 'success' })
+          setSavedCount(0)
+          setStage('success')
+          return
+        }
       }
       if (aiNeedsKey && parsed.length === 0) {
         toast({ title: 'AI is off', message: 'Add your OpenRouter API key in Settings → AI & Parser to let AI read this.', tone: 'info' })
@@ -312,7 +362,7 @@ export function QuickAdd({
                   <Check className="h-4 w-4" />
                 </div>
                 <span>
-                  Saved {savedCount} transaction{savedCount > 1 ? 's' : ''}! Available Balance updated.
+                  {savedCount > 0 ? `Saved ${savedCount} transaction${savedCount > 1 ? 's' : ''}! Available Balance updated.` : 'Done!'}
                 </span>
               </div>
             )}
