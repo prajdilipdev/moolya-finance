@@ -180,7 +180,7 @@ export function Dashboard() {
       </section>
 
       {/* Daily limit + forecast */}
-      <section className="grid gap-4 lg:grid-cols-2">
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {budget && (
           <div className="card p-5">
             <h3 className="flex items-center gap-2 text-sm font-bold"><Wallet className="h-4 w-4 text-accent" /> Daily Spending Limit</h3>
@@ -242,7 +242,7 @@ export function Dashboard() {
       )}
 
       {/* Recent + insights */}
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="card p-5 lg:col-span-2">
           <div className="flex items-center justify-between">
             <h3 className="text-sm font-bold">Recent Transactions</h3>

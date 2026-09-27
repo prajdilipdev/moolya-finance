@@ -201,7 +201,7 @@ export function Settings() {
       )}
 
       {tab === 'categories' && (
-        <div className="grid gap-4 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="card p-5">
             <h3 className="mb-3 text-sm font-bold">Categories</h3>
             <div className="mb-3 flex gap-2">

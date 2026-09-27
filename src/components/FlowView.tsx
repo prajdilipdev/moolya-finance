@@ -81,7 +81,7 @@ export function FilterableFlow({
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="card p-5">
           <h3 className="text-sm font-bold">By Category</h3>
           <div className="mt-4 space-y-4">

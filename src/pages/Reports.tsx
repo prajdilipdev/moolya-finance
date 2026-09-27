@@ -113,7 +113,7 @@ export function Reports() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="card p-5">
           <h3 className="text-sm font-bold">Expense by Category</h3>
           <div className="mt-3 divide-y divide-line">

@@ -30,7 +30,7 @@ export function Goals() {
       {db.goals.length === 0 ? (
         <EmptyState icon="Target" title="No goals yet" description="Create goals like an emergency fund, a new phone, or a vacation." action={<button onClick={() => setEditing('new')} className="btn-primary"><Plus className="h-4 w-4" /> Create goal</button>} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {db.goals.map((g) => {
             const progress = pct(g.currentAmount, g.targetAmount)
             const remaining = Math.max(g.targetAmount - g.currentAmount, 0)

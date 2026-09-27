@@ -49,7 +49,7 @@ export function Debts() {
       {db.debts.length === 0 ? (
         <EmptyState icon="CreditCard" title="No debts tracked" description="Add credit cards, personal loans or EMIs to see your obligations." action={<button onClick={() => setEditing('new')} className="btn-primary"><Plus className="h-4 w-4" /> Add debt</button>} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {db.debts.map((d) => {
             const progress = pct(d.originalBalance - d.currentBalance, d.originalBalance)
             return (

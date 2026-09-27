@@ -44,7 +44,7 @@ export function Budgets() {
       {statuses.length === 0 ? (
         <EmptyState icon="WalletCards" title="No budgets yet" description="Create an overall monthly budget and per-category budgets to track your spending." action={<button onClick={() => setEditing('new')} className="btn-primary"><Plus className="h-4 w-4" /> Create budget</button>} />
       ) : (
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           {statuses.map((s) => {
             const icon = db.categories.find((c) => c.id === s.budget.categoryId)?.icon || 'Wallet'
             return (
