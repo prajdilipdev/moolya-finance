@@ -60,7 +60,7 @@ export function AiKeys() {
         <KeyRound className="h-4 w-4 text-accent" /> OpenRouter API keys
       </h3>
       <p className="mb-4 text-sm text-base-muted">
-        Quick Add uses a fast local parser first and asks AI only for harder sentences. Add your own OpenRouter keys here — the newest is tried first, and if it's rejected, out of credit or rate-limited, the next one takes over automatically.
+        Quick Add uses a fast local parser first and asks AI only for harder sentences. AI runs on your own OpenRouter account: paste your key (free at openrouter.ai/keys). You can add several — the newest is tried first, and if it's rejected, out of credit or rate-limited, the next one takes over automatically.
       </p>
 
       <div className="mb-4 flex gap-2">
@@ -83,7 +83,7 @@ export function AiKeys() {
       {keys === null ? (
         <Loader2 className="h-4 w-4 animate-spin text-base-muted" />
       ) : keys.length === 0 ? (
-        <p className="text-sm text-base-muted">No keys yet — the app's built-in key is used.</p>
+        <p className="text-sm text-base-muted">No keys yet — add one to turn on AI for your account.</p>
       ) : (
         <div className="space-y-1">
           {keys.map((k, i) => (
@@ -102,7 +102,7 @@ export function AiKeys() {
       )}
 
       <p className="mt-4 text-xs text-base-muted">
-        Keys are stored write-only: once saved, neither this page nor anyone with browser access can read them back. Only the server-side AI function uses them.
+        Keys are stored write-only: once saved, neither this page nor anyone with browser access can read them back. Only the server-side AI function uses them, and only for your account.
       </p>
     </div>
   )

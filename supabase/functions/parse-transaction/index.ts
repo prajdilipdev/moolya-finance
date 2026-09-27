@@ -16,6 +16,8 @@
 //   supabase functions deploy parse-transaction
 //   supabase secrets set OPENROUTER_API_KEY=sk-or-v1-...
 //   supabase secrets set OPENROUTER_MODEL=some/model:free   # optional, tried before MODELS
+//   supabase secrets set OWNER_USER_ID=<uuid>   # only this account may use OPENROUTER_API_KEY;
+//                                               # everyone else uses keys saved in Settings → AI
 //
 // Request:  { text: string, categories: { name: string, subs: string[] }[], type?: 'income' | 'expense' }
 // Response: { transactions: ParsedTransaction[] }  |  { error: string }
@@ -212,7 +214,7 @@ async function askModels(apiKey: string, messages: Message[]): Promise<unknown |
  * granted to browser roles, so this reads it with the service role — scoped
  * to the JWT's user id, which the platform has already verified.
  */
-async function userKeys(req: Request): Promise<string[]> {
+async function userKeys(req: Request): Promise<{ sub: string; keys: string[] }> {
   const url = Deno.env.get('SUPABASE_URL')
   const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
   const jwt = req.headers.get('Authorization')?.replace(/^Bearer /, '') ?? ''
@@ -220,15 +222,15 @@ async function userKeys(req: Request): Promise<string[]> {
   try {
     sub = JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).sub ?? ''
   } catch { /* no usable claims → server key only */ }
-  if (!url || !service || !/^[0-9a-f-]{36}$/.test(sub)) return []
+  if (!url || !service || !/^[0-9a-f-]{36}$/.test(sub)) return { sub, keys: [] }
   try {
     const res = await fetch(`${url}/rest/v1/openrouter_keys?user_id=eq.${sub}&select=key&order=created_at.desc&limit=10`, {
       headers: { apikey: service, Authorization: `Bearer ${service}` },
     })
-    if (!res.ok) return []
-    return ((await res.json()) as { key: string }[]).map((r) => r.key)
+    if (!res.ok) return { sub, keys: [] }
+    return { sub, keys: ((await res.json()) as { key: string }[]).map((r) => r.key) }
   } catch {
-    return []
+    return { sub, keys: [] }
   }
 }
 
@@ -238,8 +240,14 @@ export default {
   fetch: withSupabase({ auth: 'user' }, async (req: Request) => {
     if (req.method !== 'POST') return json({ error: 'Method not allowed' }, 405)
 
-    const apiKeys = [...(await userKeys(req)), Deno.env.get('OPENROUTER_API_KEY')].filter((k): k is string => !!k)
-    if (apiKeys.length === 0) return json({ error: 'AI is not configured on the server.' }, 501)
+    // Each account brings its own keys. The server key is the owner's only —
+    // it is never spent on other users' requests.
+    const { sub, keys } = await userKeys(req)
+    const serverKey = sub && sub === Deno.env.get('OWNER_USER_ID') ? Deno.env.get('OPENROUTER_API_KEY') : undefined
+    const apiKeys = [...keys, serverKey].filter((k): k is string => !!k)
+    if (apiKeys.length === 0) {
+      return json({ error: 'Add your OpenRouter API key in Settings → AI & Parser to use AI.', code: 'no_key' }, 402)
+    }
 
     let body: { text?: unknown; categories?: unknown; type?: unknown }
     try {

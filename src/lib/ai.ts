@@ -11,6 +11,9 @@ import { defaultCategories } from './categories'
  * regex parser stays in charge.
  */
 
+/** Set when the server said this account has no OpenRouter key saved. */
+export let aiNeedsKey = false
+
 /** Cheap gate: AI needs a signed-in Supabase session to call the function. */
 export function isAIAvailable(): boolean {
   return supabase !== null
@@ -52,9 +55,12 @@ export async function parseWithAI(
       body: { text, categories: categoryTree(categories), type },
     })
     if (error) {
-      console.warn('[ai] parse-transaction failed:', error.message)
+      const body = await (error as { context?: Response }).context?.json?.().catch(() => null)
+      aiNeedsKey = body?.code === 'no_key'
+      console.warn('[ai] parse-transaction failed:', body?.error ?? error.message)
       return null
     }
+    aiNeedsKey = false
     const list = (data as { transactions?: unknown } | null)?.transactions
     if (!Array.isArray(list) || list.length === 0) return null
     return list as ParsedTransaction[]

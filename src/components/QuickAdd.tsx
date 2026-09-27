@@ -4,7 +4,7 @@ import { Sparkles, Loader2, Check, X, Calculator, Plus, ArrowUpRight, ArrowDownR
 import { useApp } from '@/context/AppContext'
 import { useToast } from '@/context/ToastContext'
 import { parseBlock, parseLine, tryCalculator } from '@/lib/parser'
-import { isAIAvailable, parseWithAI } from '@/lib/ai'
+import { isAIAvailable, parseWithAI, aiNeedsKey } from '@/lib/ai'
 import { ParsedTransaction, TransactionType } from '@/lib/types'
 import { money } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -153,6 +153,9 @@ export function QuickAdd({
       if (ai && ai.length > 0) {
         executeSave(keepUserWording(ai, parsed).map((p) => applyMode(p, mode)))
         return
+      }
+      if (aiNeedsKey && parsed.length === 0) {
+        toast({ title: 'AI is off', message: 'Add your OpenRouter API key in Settings → AI & Parser to let AI read this.', tone: 'info' })
       }
       if (parsed.length === 0) {
         // AI unavailable or unhelpful, and the local parser found nothing either.
