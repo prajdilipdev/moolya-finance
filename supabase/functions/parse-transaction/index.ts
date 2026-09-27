@@ -18,8 +18,8 @@
 //   supabase secrets set OWNER_USER_ID=<uuid>   # only this account may use OPENROUTER_API_KEY;
 //                                               # everyone else uses keys saved in Settings → AI
 //
-// Request:  { text: string, categories: { name: string, subs: string[] }[], type?: 'income' | 'expense' }
-// Response: { transactions: ParsedTransaction[] }  |  { error: string }
+// Request:  { text, categories: { name, subs[] }[], type?: 'income' | 'expense', goals?: string[], bills?: string[] }
+// Response: { transactions: ParsedTransaction[], actions: Action[] }  |  { error: string }
 
 import { withSupabase } from 'npm:@supabase/server'
 
@@ -130,9 +130,45 @@ function validate(raw: unknown, allowed: Map<string, Set<string>>, note: string)
   }
 }
 
-function systemPrompt(categories: { name: string; subs: string[] }[], today: string, forcedType: 'income' | 'expense' | null): string {
+type Action =
+  | { kind: 'goal_contribution'; goal: string; amount: number }
+  | { kind: 'bill_paid'; bill: string }
+  | { kind: 'set_budget'; category: string; amount: number }
+
+/** Actions may only name goals/bills/categories the caller actually has. */
+function validateAction(raw: unknown, names: { goals: string[]; bills: string[]; categories: string[] }): Action | null {
+  if (!raw || typeof raw !== 'object') return null
+  const r = raw as Record<string, unknown>
+  // Case-insensitive match back to the user's exact spelling.
+  const pick = (v: unknown, list: string[]) =>
+    typeof v === 'string' ? list.find((n) => n.toLowerCase() === v.trim().toLowerCase()) ?? null : null
+  const amount = typeof r.amount === 'number' ? r.amount : Number(r.amount)
+  const okAmount = isFinite(amount) && amount > 0 && amount <= 1e12
+  const rounded = Math.round(amount * 100) / 100
+  if (r.kind === 'goal_contribution') {
+    const goal = pick(r.goal, names.goals)
+    return goal && okAmount ? { kind: 'goal_contribution', goal, amount: rounded } : null
+  }
+  if (r.kind === 'bill_paid') {
+    const bill = pick(r.bill, names.bills)
+    return bill ? { kind: 'bill_paid', bill } : null
+  }
+  if (r.kind === 'set_budget') {
+    const category = pick(r.category, ['Overall', ...names.categories])
+    return category && okAmount ? { kind: 'set_budget', category, amount: rounded } : null
+  }
+  return null
+}
+
+function systemPrompt(
+  categories: { name: string; subs: string[] }[],
+  today: string,
+  forcedType: 'income' | 'expense' | null,
+  goals: string[],
+  bills: string[],
+): string {
   const tree = categories.map((c) => (c.subs.length ? `${c.name}: ${c.subs.join(', ')}` : c.name)).join('\n')
-  return `You convert short personal-finance notes written in Indian English into structured transactions.
+  return `You are the assistant inside a personal-finance app. You read short notes written in Indian English and turn them into transactions and app actions.
 
 Today is ${today}. Amounts must be converted to Indian rupees (INR). "2k" means 2000, "1.5 lakh" means 150000, "1 crore" means 10000000.
 If the note mentions foreign currency (e.g. $21, 21 USD, €15, £10, 50 AED), convert it to INR (assume 1 USD = 95.60 INR, 1 EUR = 110.30 INR, 1 GBP = 129.00 INR, 1 AED = 26.02 INR, 1 CAD = 68.70 INR, 1 AUD = 67.50 INR, 1 SGD = 74.60 INR) and note the original amount in description e.g. "Domain Renewal ($21)".
@@ -140,10 +176,21 @@ If the note mentions foreign currency (e.g. $21, 21 USD, €15, £10, 50 AED), c
 Available categories (use these names exactly, or omit):
 ${tree}
 
-Return ONLY a JSON object, no prose and no markdown fences:
-{"transactions":[{"amount":number,"type":"income"|"expense","description":string,"category":string,"subcategory":string|null,"date":"YYYY-MM-DD"|null,"paymentMethod":string|null,"confidence":number}]}
+The user's savings goals (use these names exactly): ${goals.length ? goals.join(', ') : '(none)'}
+The user's bills (use these names exactly): ${bills.length ? bills.join(', ') : '(none)'}
 
-Rules:
+Return ONLY a JSON object, no prose and no markdown fences:
+{"transactions":[{"amount":number,"type":"income"|"expense","description":string,"category":string,"subcategory":string|null,"date":"YYYY-MM-DD"|null,"paymentMethod":string|null,"confidence":number}],
+ "actions":[{"kind":"goal_contribution","goal":string,"amount":number} | {"kind":"bill_paid","bill":string} | {"kind":"set_budget","category":string,"amount":number}]}
+
+Actions (use them instead of a transaction when the note is about the app's goals, bills or budgets):
+- Putting money into / adding to / saving towards one of the goals above, in any word order ("1000 emergency fund add", "add 5k to goa trip", "saved 2000 for bike") → goal_contribution. Do NOT also add a transaction for it.
+- Saying one of the bills above is paid ("paid electricity bill", "rent done") → bill_paid.
+- Setting or changing a budget ("food budget 5000", "set monthly budget 30k") → set_budget; category is one of the category names above, or "Overall" for a total budget.
+- Only reference goals and bills from the lists above. If nothing matches, treat the note as a normal transaction.
+- Omit "actions" or use [] when there are none.
+
+Transaction rules:
 - One entry per distinct transaction in the note.
 ${forcedType
     ? `- The user explicitly marked this as ${forcedType}. type MUST be "${forcedType}" for every entry, and category must be one that fits ${forcedType}.`
@@ -153,7 +200,7 @@ ${forcedType
 - description is a short label built ONLY from words in the note (fix obvious spelling, add a word like "Subscription" or "Repair" if implied). Never invent names, people or brands that are not in the note.
 - date is null unless the note states or implies one.
 - confidence is 0-1: how sure you are of amount and type.
-- If you cannot find an amount, return {"transactions":[]}.`
+- If you cannot find an amount and there is no action, return {"transactions":[],"actions":[]}.`
 }
 
 type Message = { role: 'system' | 'user'; content: string }
@@ -242,7 +289,7 @@ export default {
       return json({ error: 'Add your OpenRouter API key in Settings → AI & Parser to use AI.', code: 'no_key' }, 402)
     }
 
-    let body: { text?: unknown; categories?: unknown; type?: unknown }
+    let body: { text?: unknown; categories?: unknown; type?: unknown; goals?: unknown; bills?: unknown }
     try {
       body = await req.json()
     } catch {
@@ -261,11 +308,15 @@ export default {
       : []
     const allowed = new Map(categories.map((c) => [c.name, new Set(c.subs)]))
     const forcedType = body.type === 'income' || body.type === 'expense' ? body.type : null
+    const names = (v: unknown) =>
+      Array.isArray(v) ? v.filter((n): n is string => typeof n === 'string' && !!n.trim()).map((n) => n.slice(0, 60)).slice(0, 50) : []
+    const goals = names(body.goals)
+    const bills = names(body.bills)
 
     const today = new Date().toISOString().slice(0, 10)
 
     const messages: Message[] = [
-      { role: 'system', content: systemPrompt(categories, today, forcedType) },
+      { role: 'system', content: systemPrompt(categories, today, forcedType, goals, bills) },
       { role: 'user', content: text },
     ]
     let parsed: unknown | null = null
@@ -282,6 +333,12 @@ export default {
       // The user's explicit choice beats whatever the model decided.
       .map((t) => (forcedType ? { ...t, type: forcedType } : t))
 
-    return json({ transactions })
+    const rawActions = (parsed as { actions?: unknown })?.actions
+    const actions = (Array.isArray(rawActions) ? rawActions : [])
+      .slice(0, MAX_TRANSACTIONS)
+      .map((a) => validateAction(a, { goals, bills, categories: categories.map((c) => c.name) }))
+      .filter((a): a is Action => a !== null)
+
+    return json({ transactions, actions })
   }),
 }
