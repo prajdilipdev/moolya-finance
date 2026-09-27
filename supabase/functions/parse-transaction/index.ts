@@ -15,7 +15,6 @@
 // Deploy:
 //   supabase functions deploy parse-transaction
 //   supabase secrets set OPENROUTER_API_KEY=sk-or-v1-...
-//   supabase secrets set OPENROUTER_MODEL=some/model:free   # optional, tried before MODELS
 //   supabase secrets set OWNER_USER_ID=<uuid>   # only this account may use OPENROUTER_API_KEY;
 //                                               # everyone else uses keys saved in Settings → AI
 //
@@ -25,14 +24,11 @@
 import { withSupabase } from 'npm:@supabase/server'
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
-// Tried in order; the next one takes over the moment one fails (HTTP error,
-// rate limit, timeout, empty or non-JSON reply). Picked by benchmarking the
-// free models on Indian-English notes: ling-flash-fin was fastest and exact,
-// the others matched it for accuracy. OPENROUTER_MODEL, if set, goes first.
-const MODELS = [
-  'inclusionai/ling-3.0-flash-fin:free',
-  'inclusionai/ling-3.0-flash-sante:free',
-]
+// Free models only, tried in order; the next takes over the moment one fails
+// (HTTP error, rate limit, timeout, empty or non-JSON reply). openrouter/free
+// is OpenRouter's router across whatever free models are currently up.
+// Hard-coded on purpose: users' own keys run here, so nothing may pick a paid model.
+const MODELS = ['inclusionai/ling-3.0-flash-fin:free', 'openrouter/free']
 // Free models are either fast (~2s) or stuck in a queue; move on quickly.
 const MODEL_TIMEOUT_MS = 6_000
 const MAX_INPUT_CHARS = 2000
@@ -176,10 +172,7 @@ function extractJSON(content: unknown): unknown | null {
 }
 
 async function askModels(apiKey: string, messages: Message[]): Promise<unknown | null> {
-  const preferred = Deno.env.get('OPENROUTER_MODEL')
-  const models = preferred ? [preferred, ...MODELS.filter((m) => m !== preferred)] : MODELS
-
-  for (const model of models) {
+  for (const model of MODELS) {
     try {
       const res = await fetch(OPENROUTER_URL, {
         method: 'POST',
