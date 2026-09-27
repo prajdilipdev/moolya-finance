@@ -335,6 +335,7 @@ export function Import() {
             <Sparkles className="h-3.5 w-3.5 text-accent" /> Paste your notes or SMS
           </label>
           <textarea
+            aria-label="Transactions to import"
             value={text}
             onChange={(e) => {
               setText(e.target.value)
@@ -550,6 +551,7 @@ export function Import() {
                         <button
                           onClick={() => removeRow(i)}
                           className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1"
+                          aria-label="Remove row"
                         >
                           <Trash2 className="h-4 w-4" />
                         </button>

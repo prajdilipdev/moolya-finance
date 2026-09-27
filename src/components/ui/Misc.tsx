@@ -18,7 +18,7 @@ export function Badge({ children, tone = 'neutral', className }: { children: Rea
 export function Progress({ value, tone = 'accent', className }: { value: number; tone?: 'accent' | 'positive' | 'warning' | 'negative' | 'info'; className?: string }) {
   const v = Math.max(0, Math.min(100, value))
   const colors = {
-    accent: 'bg-accent',
+    accent: 'bg-accent-fill',
     positive: 'bg-positive',
     warning: 'bg-warning',
     negative: 'bg-negative',
@@ -125,9 +125,9 @@ export function Segmented<T extends string>({ options, value, onChange, size = '
 
 export function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div>
-      <label className="label">{label}</label>
+    <label className="block">
+      <span className="label">{label}</span>
       {children}
-    </div>
+    </label>
   )
 }

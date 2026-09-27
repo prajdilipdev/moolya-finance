@@ -110,7 +110,7 @@ function MenuTile({ item, onNavigate }: { item: NavItem; onNavigate: () => void 
     >
       {({ isActive }) => (
         <>
-          <span className={cn('flex h-9 w-9 items-center justify-center rounded-[11px]', isActive ? 'bg-accent text-white' : 'bg-card text-accent shadow-card')}>
+          <span className={cn('flex h-9 w-9 items-center justify-center rounded-[11px]', isActive ? 'bg-accent-fill text-white' : 'bg-card text-accent shadow-card')}>
             <item.icon className="h-[18px] w-[18px]" />
           </span>
           <span>{item.label}</span>
@@ -187,7 +187,7 @@ export function Layout() {
   const userCard = (onSignOut: () => void) =>
     auth.enabled && auth.user ? (
       <div className="flex items-center gap-2.5 rounded-[14px] bg-card-muted/70 p-2.5">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent text-[11px] font-bold text-white">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-fill text-[11px] font-bold text-white">
           {initials(userName)}
         </span>
         <div className="min-w-0 flex-1">
@@ -257,7 +257,7 @@ export function Layout() {
               >
                 <Search className="h-4 w-4" />
                 <span className="hidden text-xs sm:inline">Search</span>
-                <kbd className="hidden rounded-md bg-card-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted md:inline">⌘K</kbd>
+                <kbd className="hidden rounded-md bg-card-muted px-1.5 py-0.5 text-[10px] font-semibold text-base-muted md:inline">{/Mac|iP/.test(navigator.platform) ? "⌘K" : "Ctrl K"}</kbd>
               </button>
               <PeriodSelector />
               <button onClick={() => setQuickAdd(true)} className="btn-primary hidden !min-h-[40px] text-xs md:inline-flex lg:hidden">
@@ -284,7 +284,7 @@ export function Layout() {
           <button
             onClick={() => setQuickAdd(true)}
             aria-label="Add transaction"
-            className="-mt-9 flex h-[58px] w-[58px] items-center justify-center rounded-[20px] bg-accent text-white shadow-[0_10px_24px_-8px_hsl(var(--accent)/0.7)] ring-4 ring-[hsl(var(--bg))] transition-transform active:scale-95"
+            className="-mt-9 flex h-[58px] w-[58px] items-center justify-center rounded-[20px] bg-accent-fill text-white shadow-[0_10px_24px_-8px_hsl(var(--accent)/0.7)] ring-4 ring-[hsl(var(--bg))] transition-transform active:scale-95"
           >
             <Plus className="h-7 w-7" strokeWidth={2.4} />
           </button>

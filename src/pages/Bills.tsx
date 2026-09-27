@@ -85,8 +85,8 @@ export function Bills() {
                 </div>
                 <div className="tabular text-lg font-bold">{money(s.amount)}<span className="text-xs font-medium text-base-muted">/{s.frequency === 'monthly' ? 'mo' : 'yr'}</span></div>
                 <div className="flex gap-1">
-                  <button onClick={() => setEditSub(s)} className="rounded-lg p-2 text-base-muted hover:bg-base/5 sm:p-1.5"><Pencil className="h-4 w-4" /></button>
-                  <button onClick={() => setToDeleteSub(s)} className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1.5"><Trash2 className="h-4 w-4" /></button>
+                  <button onClick={() => setEditSub(s)} className="rounded-lg p-2 text-base-muted hover:bg-base/5 sm:p-1.5" aria-label="Edit"><Pencil className="h-4 w-4" /></button>
+                  <button onClick={() => setToDeleteSub(s)} className="rounded-lg p-2 text-base-muted hover:bg-negative-soft hover:text-negative sm:p-1.5" aria-label="Delete"><Trash2 className="h-4 w-4" /></button>
                 </div>
               </div>
             ))}

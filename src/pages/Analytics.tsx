@@ -203,7 +203,7 @@ export function Analytics() {
               </ResponsiveContainer>
             </div>
             <div className="flex-1 space-y-3">
-              <div className="flex items-center justify-between text-sm"><span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-accent" /> Fixed</span><span className="tabular font-semibold">{money(fixedVariable[0].value)} · {Math.round(pct(fixedVariable[0].value, fixedVariable[0].value + fixedVariable[1].value))}%</span></div>
+              <div className="flex items-center justify-between text-sm"><span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-accent-fill" /> Fixed</span><span className="tabular font-semibold">{money(fixedVariable[0].value)} · {Math.round(pct(fixedVariable[0].value, fixedVariable[0].value + fixedVariable[1].value))}%</span></div>
               <div className="flex items-center justify-between text-sm"><span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-full bg-warning" /> Variable</span><span className="tabular font-semibold">{money(fixedVariable[1].value)} · {Math.round(pct(fixedVariable[1].value, fixedVariable[0].value + fixedVariable[1].value))}%</span></div>
               <div className="border-t pt-2 text-xs text-base-muted">Fixed = rent, utilities, bills, subscriptions, EMIs.</div>
             </div>

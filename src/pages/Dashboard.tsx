@@ -68,7 +68,7 @@ export function Dashboard() {
       <div>
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-[22px] font-extrabold leading-tight tracking-tight sm:text-3xl">{greeting()}, {db.profile?.name || 'there'} 👋</h2>
+            <h2 className="text-[22px] font-extrabold leading-tight tracking-tight sm:text-3xl">{greeting()}, {db.profile?.name || 'there'}</h2>
             <p className="mt-0.5 text-sm text-base-muted">Your financial overview</p>
           </div>
           <div className="hidden items-center gap-2 sm:flex">

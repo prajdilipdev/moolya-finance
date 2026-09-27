@@ -84,7 +84,7 @@ export function SetupChecklist() {
         ))}
       </div>
       <div className="mt-3 h-1 w-full overflow-hidden rounded-full bg-base/10">
-        <div className="h-full rounded-full bg-accent transition-all duration-500" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
+        <div className="h-full rounded-full bg-accent-fill transition-all duration-500" style={{ width: `${(doneCount / steps.length) * 100}%` }} />
       </div>
     </div>
   )

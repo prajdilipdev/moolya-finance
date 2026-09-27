@@ -202,7 +202,7 @@ export function Settings() {
           <div className="card p-5">
             <h3 className="mb-3 text-sm font-bold">Categories</h3>
             <div className="mb-3 flex gap-2">
-              <input placeholder="New category name" id="newCat" className="input flex-1" />
+              <input aria-label="New category name" placeholder="New category name" id="newCat" className="input flex-1" />
               <button onClick={() => { const el = document.getElementById('newCat') as HTMLInputElement; if (el.value.trim()) { upsertCategory({ name: el.value.trim(), type: 'expense', parentId: null, icon: 'Tag', system: false }); el.value = '' } }} className="btn-primary"><Plus className="h-4 w-4" /> Add</button>
             </div>
             <div className="space-y-1">
@@ -217,7 +217,7 @@ export function Settings() {
           <div className="card p-5">
             <h3 className="mb-3 text-sm font-bold">Payment methods</h3>
             <div className="mb-3 flex gap-2">
-              <input placeholder="New method" id="newPm" className="input flex-1" />
+              <input aria-label="New payment method" placeholder="New method" id="newPm" className="input flex-1" />
               <button onClick={() => { const el = document.getElementById('newPm') as HTMLInputElement; if (el.value.trim()) { upsertPaymentMethod({ name: el.value.trim(), icon: 'Banknote', system: false }); el.value = '' } }} className="btn-primary"><Plus className="h-4 w-4" /> Add</button>
             </div>
             <div className="space-y-1">
@@ -232,7 +232,7 @@ export function Settings() {
             <h3 className="mb-1 text-sm font-bold">Your categorization rules</h3>
             <p className="mb-3 text-xs text-base-muted">Teach Quick Add: when a description contains a keyword, always use this category.</p>
             <div className="mb-3 flex flex-wrap gap-2">
-              <input placeholder="Keyword e.g. chai" id="ruleKw" className="input flex-1 min-w-[120px]" />
+              <input aria-label="Rule keyword" placeholder="Keyword e.g. chai" id="ruleKw" className="input flex-1 min-w-[120px]" />
               <select id="ruleCat" className="input w-auto">
                 {db.categories.filter((c) => !c.parentId && c.type === 'expense').map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
               </select>

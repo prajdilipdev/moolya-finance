@@ -17,11 +17,12 @@
   /* Text */
   --base: 160 18% 10%;        /* #151D1A ink */
   --base-muted: 160 6% 40%;   /* #606B67 */
-  --muted: 160 5% 60%;        /* #939A97 */
+  --muted: 160 5% 44%;        /* #6B7572 — 4.5:1 on paper */
 
   /* Brand — deep emerald */
   --accent: 160 84% 28%;      /* #0B8458 */
-  --accent-strong: 161 86% 22%;
+  --accent-fill: 160 84% 24%;  /* solid buttons/badges: white text ≥ 4.5:1 */
+  --accent-strong: 161 86% 19%;
   --accent-soft: 152 50% 93%;
   --accent-ring: 160 84% 36%;
 
@@ -56,10 +57,11 @@
 
   --base: 60 10% 95%;         /* #F3F3F0 */
   --base-muted: 160 5% 66%;
-  --muted: 160 4% 48%;
+  --muted: 160 4% 54%;
 
   --accent: 158 70% 45%;      /* #22C38A */
-  --accent-strong: 158 75% 38%;
+  --accent-fill: 158 72% 30%;  /* darker than --accent so white text passes 4.5:1 */
+  --accent-strong: 158 75% 25%;
   --accent-soft: 158 45% 11%;
   --accent-ring: 158 70% 50%;
 
@@ -146,8 +148,8 @@ body {
     @apply inline-flex min-h-[44px] items-center justify-center gap-2 rounded-[12px] px-4 py-2.5 text-sm font-semibold transition-all duration-150 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[hsl(var(--bg))] focus-visible:ring-accent/50 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none select-none sm:min-h-[40px];
   }
   .btn-primary {
-    @apply btn bg-accent text-white hover:bg-accent-strong;
-    box-shadow: 0 1px 2px rgb(11 132 88 / 0.25), inset 0 1px 0 rgb(255 255 255 / 0.12);
+    @apply btn bg-accent-fill text-white hover:bg-accent-strong;
+    box-shadow: 0 1px 2px hsl(var(--accent-fill) / 0.3), inset 0 1px 0 rgb(255 255 255 / 0.12);
   }
   .btn-secondary {
     @apply btn border bg-card text-base hover:bg-base/[0.04];

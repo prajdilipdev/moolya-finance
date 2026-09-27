@@ -104,11 +104,13 @@ export function Transactions() {
               setPage(0)
             }}
             placeholder="Search transactions…"
+            aria-label="Search transactions"
             className="input pl-9"
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <select
+            aria-label="Filter by type"
             value={type}
             onChange={(e) => {
               setType(e.target.value as typeof type)
@@ -121,6 +123,7 @@ export function Transactions() {
             <option value="expense">Expense</option>
           </select>
           <select
+            aria-label="Filter by category"
             value={catId}
             onChange={(e) => {
               setCatId(e.target.value)
@@ -245,7 +248,7 @@ export function Transactions() {
                     onClick={() => setPage(i)}
                     className={cn(
                       'h-9 w-9 shrink-0 rounded-lg text-xs font-semibold sm:h-8 sm:w-8',
-                      i === safePage ? 'bg-accent text-white' : 'text-base-muted hover:bg-base/5'
+                      i === safePage ? 'bg-accent-fill text-white' : 'text-base-muted hover:bg-base/5'
                     )}
                   >
                     {i + 1}

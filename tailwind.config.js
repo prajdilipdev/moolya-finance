@@ -35,6 +35,7 @@ export default {
         'card-muted': 'hsl(var(--card-muted) / <alpha-value>)',
         line: 'hsl(var(--line) / <alpha-value>)',
         accent: 'hsl(var(--accent) / <alpha-value>)',
+        'accent-fill': 'hsl(var(--accent-fill) / <alpha-value>)',
         'accent-strong': 'hsl(var(--accent-strong) / <alpha-value>)',
         'accent-soft': 'hsl(var(--accent-soft) / <alpha-value>)',
         positive: 'hsl(var(--positive) / <alpha-value>)',

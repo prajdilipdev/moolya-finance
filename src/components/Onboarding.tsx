@@ -159,7 +159,7 @@ export function Onboarding() {
       <div className="mt-6 flex items-center justify-between">
         <div className="flex gap-1.5">
           {[0, 1, 2].map((i) => (
-            <span key={i} className={i === step ? 'h-1.5 w-4 rounded-full bg-accent transition-all' : 'h-1.5 w-1.5 rounded-full bg-base/15'} />
+            <span key={i} className={i === step ? 'h-1.5 w-4 rounded-full bg-accent-fill transition-all' : 'h-1.5 w-1.5 rounded-full bg-base/15'} />
           ))}
         </div>
         <div className="flex items-center gap-2">
