@@ -255,8 +255,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     apply(pref)
   }, [db.profile?.theme])
 
+  // Runs fn immediately (not as a deferred setDb updater) so callers that
+  // capture a value inside fn — then push it to the cloud — actually have it.
+  // A deferred updater left those captures null and nothing was ever synced.
   const update = useCallback((fn: (prev: DB) => DB) => {
-    setDb((prev) => fn(prev))
+    const next = fn(dbRef.current)
+    dbRef.current = next
+    setDb(next)
   }, [])
 
   const syncNow = useCallback(async () => {
