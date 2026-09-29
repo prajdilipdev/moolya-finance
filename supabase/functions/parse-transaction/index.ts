@@ -29,8 +29,8 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 // is OpenRouter's router across whatever free models are currently up.
 // Hard-coded on purpose: users' own keys run here, so nothing may pick a paid model.
 const MODELS = ['inclusionai/ling-3.0-flash-sante:free', 'openrouter/free']
-// Free models are either fast (~2s) or stuck in a queue; move on quickly.
-const MODEL_TIMEOUT_MS = 6_000
+// Free models are either fast (~3s, ling-sante up to ~6s) or stuck in a queue; move on after that.
+const MODEL_TIMEOUT_MS = 8_000
 const MAX_INPUT_CHARS = 2000
 const MAX_TRANSACTIONS = 25
 
