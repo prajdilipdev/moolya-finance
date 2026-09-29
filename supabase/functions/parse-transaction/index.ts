@@ -28,7 +28,7 @@ const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions'
 // (HTTP error, rate limit, timeout, empty or non-JSON reply). openrouter/free
 // is OpenRouter's router across whatever free models are currently up.
 // Hard-coded on purpose: users' own keys run here, so nothing may pick a paid model.
-const MODELS = ['inclusionai/ling-3.0-flash-fin:free', 'openrouter/free']
+const MODELS = ['inclusionai/ling-3.0-flash-sante:free', 'openrouter/free']
 // Free models are either fast (~2s) or stuck in a queue; move on quickly.
 const MODEL_TIMEOUT_MS = 6_000
 const MAX_INPUT_CHARS = 2000
