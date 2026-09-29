@@ -160,6 +160,17 @@ function validateAction(raw: unknown, names: { goals: string[]; bills: string[];
   return null
 }
 
+/** Date arithmetic on YYYY-MM-DD strings; models are unreliable at it. */
+function shiftDate(day: string, days: number): string {
+  const d = new Date(`${day}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function weekday(day: string): string {
+  return new Date(`${day}T00:00:00Z`).toLocaleDateString('en-US', { weekday: 'long', timeZone: 'UTC' })
+}
+
 function systemPrompt(
   categories: { name: string; subs: string[] }[],
   today: string,
@@ -170,7 +181,8 @@ function systemPrompt(
   const tree = categories.map((c) => (c.subs.length ? `${c.name}: ${c.subs.join(', ')}` : c.name)).join('\n')
   return `You are the assistant inside a personal-finance app. You read short notes written in Indian English and turn them into transactions and app actions.
 
-Today is ${today}. Amounts must be converted to Indian rupees (INR). "2k" means 2000, "1.5 lakh" means 150000, "1 crore" means 10000000.
+Today is ${today} (${weekday(today)}). Yesterday was ${shiftDate(today, -1)}, the day before yesterday was ${shiftDate(today, -2)}. Use these exact dates for "today", "yesterday", "day before yesterday"; for "last <weekday>" count back from today.
+Amounts must be converted to Indian rupees (INR). "2k" means 2000, "1.5 lakh" means 150000, "1 crore" means 10000000.
 If the note mentions foreign currency (e.g. $21, 21 USD, €15, £10, 50 AED), convert it to INR (assume 1 USD = 95.60 INR, 1 EUR = 110.30 INR, 1 GBP = 129.00 INR, 1 AED = 26.02 INR, 1 CAD = 68.70 INR, 1 AUD = 67.50 INR, 1 SGD = 74.60 INR) and note the original amount in description e.g. "Domain Renewal ($21)".
 
 Available categories (use these names exactly, or omit):
@@ -313,7 +325,8 @@ export default {
     const goals = names(body.goals)
     const bills = names(body.bills)
 
-    const today = new Date().toISOString().slice(0, 10)
+    // The app's users are in India: a UTC date would still be "yesterday" until 05:30 IST.
+    const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })
 
     const messages: Message[] = [
       { role: 'system', content: systemPrompt(categories, today, forcedType, goals, bills) },
