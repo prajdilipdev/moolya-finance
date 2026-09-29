@@ -197,7 +197,7 @@ Return ONLY a JSON object, no prose and no markdown fences:
 
 Actions (use them instead of a transaction when the note is about the app's goals, bills or budgets):
 - Putting money into / adding to / saving towards one of the goals above, in any word order ("1000 emergency fund add", "add 5k to goa trip", "saved 2000 for bike") → goal_contribution. Do NOT also add a transaction for it.
-- Saying one of the bills above is paid ("paid electricity bill", "rent done") → bill_paid.
+- Saying one of the bills above is paid ("paid electricity bill", "rent done") → bill_paid. bill_paid only ticks the bill off and records no money, so if the note gives an amount ALSO add an expense transaction for it ("jio recharge done 299" → bill_paid Jio Recharge + expense 299). With no amount, just bill_paid.
 - Setting or changing a budget ("food budget 5000", "set monthly budget 30k") → set_budget; category is one of the category names above, or "Overall" for a total budget.
 - Only reference goals and bills from the lists above. If nothing matches, treat the note as a normal transaction.
 - Omit "actions" or use [] when there are none.
